@@ -3,10 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Eira 视频转 GIF</title>
-  <script src="https://cdn.jsdelivr.net/npm/omggif@1.0.10/omggif.min.js"></script>
+  <title>批量图像抠图</title>
   <style>
-    /* 核心视觉风格：极简黑白、方正硬朗、无圆角 */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -21,9 +19,8 @@
       color: #000000;
       font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
       padding: 40px 20px;
-      max-width: 800px;
+      max-width: 1000px;
       margin: 0 auto;
-      line-height: 1.6;
     }
 
     header {
@@ -81,26 +78,30 @@
     .modal-box {
       background: #ffffff;
       border: 2px solid #000000;
-      padding: 18px 20px;
-      width: 85%;
-      max-width: 340px;
-      box-shadow: 6px 6px 0px #000000;
+      padding: 24px;
+      width: 90%;
+      max-width: 460px;
+      box-shadow: 8px 8px 0px #000000;
     }
 
     .modal-title {
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 700;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
       border-bottom: 1px solid #000000;
-      padding-bottom: 6px;
+      padding-bottom: 8px;
       letter-spacing: 1px;
     }
 
     .modal-content {
-      font-size: 11px;
-      line-height: 1.7;
+      font-size: 12px;
+      line-height: 1.8;
       color: #333333;
-      margin-bottom: 16px;
+      margin-bottom: 20px;
+    }
+
+    .modal-content p {
+      margin-bottom: 8px;
     }
 
     .modal-close-btn {
@@ -108,67 +109,116 @@
       background: #000000;
       color: #ffffff;
       border: 1px solid #000000;
-      padding: 6px 0;
+      padding: 8px 0;
       font-size: 11px;
       cursor: pointer;
       letter-spacing: 1px;
       font-weight: 600;
     }
 
-    .config-panel {
+    .modal-close-btn:hover {
+      background: #333333;
+    }
+
+    .folder-section {
       border: 1px solid #000000;
-      padding: 16px 20px;
-      margin-bottom: 24px;
+      padding: 12px;
+      margin-bottom: 20px;
       background: #ffffff;
     }
 
-    .config-title {
+    .folder-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .folder-title {
       font-size: 11px;
       font-weight: 700;
-      margin-bottom: 12px;
-      letter-spacing: 1.5px;
+      letter-spacing: 1px;
       text-transform: uppercase;
     }
 
-    .select-wrapper {
-      position: relative;
-      width: 100%;
+    .folder-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
     }
 
-    .select-wrapper::after {
-      content: "▼";
-      font-size: 9px;
-      position: absolute;
-      right: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      pointer-events: none;
-      color: #000000;
-    }
-
-    .config-select {
-      width: 100%;
+    .folder-tab {
       border: 1px solid #000000;
-      padding: 8px 30px 8px 12px;
+      padding: 4px 10px;
       font-size: 11px;
       background: #ffffff;
       color: #000000;
       cursor: pointer;
-      appearance: none;
-      -webkit-appearance: none;
-      font-weight: 500;
+      letter-spacing: 1px;
+    }
+
+    .folder-tab.active {
+      background: #000000;
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    .config-panel {
+      border: 1px solid #000000;
+      padding: 14px;
+      margin-bottom: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-items: center;
+      background: #ffffff;
+    }
+
+    .config-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .config-group label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+
+    .config-input {
+      border: 1px solid #000000;
+      padding: 4px 8px;
+      font-size: 11px;
+      background: #ffffff;
+      color: #000000;
+      width: 120px;
+    }
+
+    .color-picker-box {
+      width: 20px;
+      height: 20px;
+      border: 1px solid #000000;
+      background-color: #ffffff;
+      display: inline-block;
+      vertical-align: middle;
+    }
+
+    .range-slider {
+      accent-color: #000000;
+      cursor: pointer;
     }
 
     .upload-area {
       border: 1px dashed #000000;
-      padding: 40px 20px;
+      padding: 28px 16px;
       text-align: center;
       background: #ffffff;
       cursor: pointer;
       margin-bottom: 24px;
     }
 
-    .upload-area:hover {
+    .upload-area:hover, .upload-area:active {
       background-color: #f5f5f5;
     }
 
@@ -180,65 +230,142 @@
       display: block;
     }
 
-    #videoInput {
+    #fileInput {
       display: none;
     }
 
-    .process-section {
-      text-align: center;
-      margin-bottom: 24px;
-      display: none;
-    }
-
-    .status-text {
-      font-size: 12px;
-      letter-spacing: 1px;
-      color: #000000;
-      margin-bottom: 16px;
-      font-weight: 600;
-    }
-
-    .preview-box {
-      border: 1px solid #000000;
-      padding: 10px;
-      background: #fafafa;
-      margin-bottom: 16px;
-      max-width: 100%;
-      display: inline-block;
-    }
-
-    .preview-box img {
-      max-width: 100%;
-      height: auto;
-      display: block;
-    }
-
-    .btn-group {
+    .controls {
       display: flex;
-      justify-content: center;
-      gap: 12px;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .status-count {
+      font-size: 11px;
+      letter-spacing: 1px;
+      color: #666666;
     }
 
     .btn {
       background: #000000;
       color: #ffffff;
       border: 1px solid #000000;
-      padding: 10px 20px;
+      padding: 8px 16px;
       font-size: 11px;
       letter-spacing: 1px;
       cursor: pointer;
       font-weight: 600;
-      display: inline-block;
-      text-decoration: none;
+    }
+
+    .btn:hover, .btn:active {
+      background: #333333;
+      border-color: #333333;
+    }
+
+    .btn:disabled {
+      background: #e0e0e0;
+      border-color: #e0e0e0;
+      color: #999999;
+      cursor: not-allowed;
     }
 
     .btn-secondary {
       background: #ffffff;
       color: #000000;
+      border-color: #000000;
     }
 
-    .btn-secondary:hover {
-      background: #f0f0f0;
+    .btn-secondary:hover, .btn-secondary:active {
+      background: #eeeeee;
+    }
+
+    .btn-danger {
+      background: #ffffff;
+      color: #000000;
+      border-color: #000000;
+    }
+
+    .btn-danger:hover, .btn-danger:active {
+      background: #000000;
+      color: #ffffff;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      border: 1px solid #000000;
+      padding: 10px;
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .preview-box {
+      width: 100%;
+      height: 180px;
+      background-color: #fafafa;
+      background-image: linear-gradient(45deg, #eee 25%, transparent 25%),
+                        linear-gradient(-45deg, #eee 25%, transparent 25%),
+                        linear-gradient(45deg, transparent 75%, #eee 75%),
+                        linear-gradient(-45deg, transparent 75%, #eee 75%);
+      background-size: 12px 12px;
+      background-position: 0 0, 0 6px, 6px -6px, -6px 0px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 10px;
+      overflow: hidden;
+      position: relative;
+      cursor: crosshair;
+    }
+
+    .preview-canvas {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    .state-text {
+      font-size: 11px;
+      letter-spacing: 1px;
+      color: #666666;
+    }
+
+    .file-name {
+      font-size: 11px;
+      margin-bottom: 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #000000;
+    }
+
+    .card-actions {
+      margin-top: auto;
+      display: flex;
+      gap: 6px;
+    }
+
+    .card-actions .btn {
+      flex: 1;
+      padding: 6px 0;
+      text-align: center;
+    }
+
+    .empty-state {
+      grid-column: 1 / -1;
+      text-align: center;
+      color: #999999;
+      font-size: 11px;
+      letter-spacing: 1px;
+      padding: 40px 0;
     }
   </style>
 </head>
@@ -246,219 +373,358 @@
 
   <header>
     <div>
-      <h1>视频转动图</h1>
-      <div class="sub-title">Eira 工具箱</div>
+      <h1>批量图像背景消除</h1>
+      <div class="sub-title">Eira抠图</div>
     </div>
     <button class="help-btn" id="openHelpBtn">使用说明</button>
   </header>
 
   <div class="modal-overlay" id="helpModal">
     <div class="modal-box">
-      <div class="modal-title">使用说明与须知</div>
+      <div class="modal-title">使用说明 & 取色抠图</div>
       <div class="modal-content">
-        <p><strong>转换机制：</strong>本地直接编码合成真实 `.gif` 文件。</p>
-        <p><strong>时长限制：</strong>限制在 <strong>1 分钟以内</strong> 的 MP4 视频。</p>
+        <p><strong>1. 默认抠白底：</strong>系统默认会扣除图片中的纯白/偏白背景。</p>
+        <p><strong>2. 吸管取色（抠非纯白）：</strong>如果图片背景是绿色、蓝色或其他单色，只需**直接点击下方预览图上的背景位置**，系统会自动读取该颜色并清除。</p>
+        <p><strong>3. 容差调节：</strong>调大容差可以消除边缘残留杂色；调小容差可防止误扣主体。</p>
       </div>
       <button class="modal-close-btn" id="closeHelpBtn">关闭</button>
     </div>
   </div>
 
-  <div class="config-panel">
-    <div class="config-title">转换模式设置</div>
-    <div class="config-row">
-      <div class="select-wrapper">
-        <select id="qualitySelect" class="config-select">
-          <option value="raw" selected>高清模式 (较高清晰度，体积稍大)</option>
-          <option value="medium">中等模式 (尺寸适中，平衡压缩)</option>
-          <option value="low">高压缩模式 (缩小尺寸，生成极快)</option>
-        </select>
+  <div class="folder-section">
+    <div class="folder-header">
+      <span class="folder-title">当前页面存储分类:</span>
+      <div class="config-group">
+        <input type="text" id="newFolderInput" class="config-input" placeholder="新建文件夹名" />
+        <button class="btn btn-secondary" id="addFolderBtn" style="padding: 4px 8px;">+ 新建分类</button>
       </div>
+    </div>
+    <div class="folder-tabs" id="folderTabs"></div>
+  </div>
+
+  <div class="config-panel">
+    <div class="config-group">
+      <label>扣除目标色:</label>
+      <div class="color-picker-box" id="colorBox" title="点击预览图中的任意颜色进行自动捕捉"></div>
+      <button class="btn btn-secondary" id="resetColorBtn" style="padding: 2px 6px; font-size: 10px;">重置为白色</button>
+    </div>
+    <div class="config-group">
+      <label for="toleranceInput">背景容差 (<span id="tolValue">30</span>):</label>
+      <input type="range" id="toleranceInput" class="range-slider" min="5" max="150" value="30" />
     </div>
   </div>
 
   <div class="upload-area" id="dropZone">
-    <label class="upload-label" for="videoInput">点击选择视频或拖拽 MP4 至此处 (限制 1 分钟以内)</label>
-    <input type="file" id="videoInput" accept="video/mp4,video/*" />
+    <label class="upload-label" for="fileInput">点击选择图片或拖拽图片至此处</label>
+    <input type="file" id="fileInput" multiple accept="image/*" />
   </div>
 
-  <div class="process-section" id="processSection">
-    <div class="status-text" id="statusText">正在准备处理...</div>
-    
-    <div id="previewContainer" style="display: none;">
-      <div class="preview-box">
-        <img id="gifResultImg" src="" alt="生成的 GIF" />
-      </div>
-      <div class="btn-group">
-        <a id="downloadBtn" href="#" download="eira_export.gif" class="btn">下载 GIF</a>
-        <button class="btn btn-secondary" id="restartBtn">删除并重新上传</button>
-      </div>
-    </div>
+  <div class="controls">
+    <div class="status-count" id="counter">当前分类图片数: 0</div>
+    <button class="btn" id="downloadAllBtn" disabled>导出当前分类全部图片</button>
   </div>
 
-  <video id="hiddenVideo" style="display:none;" playsinline muted></video>
-  <canvas id="workCanvas" style="display:none;"></canvas>
+  <div class="grid" id="grid">
+    <div class="empty-state">当前分类下未保存任何文件</div>
+  </div>
 
   <script>
-    const videoInput = document.getElementById('videoInput');
-    const dropZone = document.getElementById('dropZone');
-    const processSection = document.getElementById('processSection');
-    const statusText = document.getElementById('statusText');
-    const previewContainer = document.getElementById('previewContainer');
-    const restartBtn = document.getElementById('restartBtn');
-    const hiddenVideo = document.getElementById('hiddenVideo');
-    const workCanvas = document.getElementById('workCanvas');
-    const ctx = workCanvas.getContext('2d');
-    const gifResultImg = document.getElementById('gifResultImg');
-    const downloadBtn = document.getElementById('downloadBtn');
-    const qualitySelect = document.getElementById('qualitySelect');
+    let store = {
+      '默认分类': []
+    };
+    let currentFolder = '默认分类';
 
-    let createdObjectUrl = null;
+    // 默认背景目标色为白色 (RGB: 255, 255, 255)
+    let targetColor = { r: 255, g: 255, b: 255 };
+
+    const fileInput = document.getElementById('fileInput');
+    const dropZone = document.getElementById('dropZone');
+    const grid = document.getElementById('grid');
+    const counter = document.getElementById('counter');
+    const downloadAllBtn = document.getElementById('downloadAllBtn');
+    const toleranceInput = document.getElementById('toleranceInput');
+    const tolValue = document.getElementById('tolValue');
+    const folderTabs = document.getElementById('folderTabs');
+    const newFolderInput = document.getElementById('newFolderInput');
+    const addFolderBtn = document.getElementById('addFolderBtn');
+    const colorBox = document.getElementById('colorBox');
+    const resetColorBtn = document.getElementById('resetColorBtn');
 
     const helpModal = document.getElementById('helpModal');
     document.getElementById('openHelpBtn').onclick = () => helpModal.style.display = 'flex';
     document.getElementById('closeHelpBtn').onclick = () => helpModal.style.display = 'none';
     helpModal.onclick = (e) => { if(e.target === helpModal) helpModal.style.display = 'none'; };
 
-    dropZone.onclick = () => videoInput.click();
-    videoInput.onchange = (e) => { if (e.target.files.length) handleVideo(e.target.files[0]); };
+    renderFolders();
+    updateColorDisplay();
 
-    restartBtn.onclick = resetUI;
+    toleranceInput.addEventListener('input', (e) => {
+      tolValue.innerText = e.target.value;
+      reProcessCurrentFolder();
+    });
 
-    function resetUI() {
-      if (createdObjectUrl) {
-        URL.revokeObjectURL(createdObjectUrl);
-        createdObjectUrl = null;
-      }
-      dropZone.style.display = 'block';
-      processSection.style.display = 'none';
-      previewContainer.style.display = 'none';
-      hiddenVideo.pause();
-      hiddenVideo.src = '';
-      videoInput.value = '';
+    resetColorBtn.onclick = () => {
+      targetColor = { r: 255, g: 255, b: 255 };
+      updateColorDisplay();
+      reProcessCurrentFolder();
+    };
+
+    function updateColorDisplay() {
+      colorBox.style.backgroundColor = `rgb(${targetColor.r}, ${targetColor.g}, ${targetColor.b})`;
     }
 
-    function handleVideo(file) {
-      dropZone.style.display = 'none';
-      processSection.style.display = 'block';
-      previewContainer.style.display = 'none';
-      statusText.innerText = '正在读取本地视频...';
+    addFolderBtn.onclick = () => {
+      const name = newFolderInput.value.trim();
+      if (name && !store[name]) {
+        store[name] = [];
+        newFolderInput.value = '';
+        switchFolder(name);
+      }
+    };
 
-      const fileURL = URL.createObjectURL(file);
-      hiddenVideo.src = fileURL;
-
-      hiddenVideo.onloadedmetadata = () => {
-        if (hiddenVideo.duration > 60) {
-          alert(`视频时长超过 1 分钟（实际 ${Math.round(hiddenVideo.duration)} 秒），请重新选择较短视频！`);
-          resetUI();
-          return;
-        }
-        startGifEncoding();
-      };
-
-      hiddenVideo.onerror = () => {
-        statusText.innerText = '视频解析失败，请确保格式为标准 MP4！';
-      };
+    function renderFolders() {
+      folderTabs.innerHTML = '';
+      Object.keys(store).forEach(folderName => {
+        const tab = document.createElement('button');
+        tab.className = `folder-tab ${folderName === currentFolder ? 'active' : ''}`;
+        tab.innerText = `${folderName} (${store[folderName].length})`;
+        tab.onclick = () => switchFolder(folderName);
+        folderTabs.appendChild(tab);
+      });
     }
 
-    async function startGifEncoding() {
-      statusText.innerText = '正在提取视频帧...';
-      
-      const mode = qualitySelect.value;
-      let targetWidth = hiddenVideo.videoWidth || 480;
-      let targetHeight = hiddenVideo.videoHeight || 320;
-      let fps = 10;
+    function switchFolder(folderName) {
+      currentFolder = folderName;
+      renderFolders();
+      renderGrid();
+    }
 
-      if (mode === 'medium') {
-        targetWidth = Math.min(targetWidth, 400);
-        targetHeight = Math.round((targetWidth / hiddenVideo.videoWidth) * hiddenVideo.videoHeight);
-        fps = 8;
-      } else if (mode === 'low') {
-        targetWidth = Math.min(targetWidth, 280);
-        targetHeight = Math.round((targetWidth / hiddenVideo.videoWidth) * hiddenVideo.videoHeight);
-        fps = 6;
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.style.backgroundColor = '#eeeeee';
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.style.backgroundColor = '#ffffff';
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.style.backgroundColor = '#ffffff';
+      if (e.dataTransfer.files.length) {
+        handleFiles(e.dataTransfer.files);
       }
+    });
 
-      workCanvas.width = targetWidth;
-      workCanvas.height = targetHeight;
-
-      const duration = hiddenVideo.duration;
-      const totalFrames = Math.floor(duration * fps);
-      const frameInterval = 1 / fps;
-
-      // 提取所有帧的数据
-      const frames = [];
-      for (let i = 0; i < totalFrames; i++) {
-        hiddenVideo.currentTime = i * frameInterval;
-        await new Promise(resolve => {
-          hiddenVideo.onseeked = resolve;
-        });
-
-        ctx.drawImage(hiddenVideo, 0, 0, targetWidth, targetHeight);
-        const imgData = ctx.getImageData(0, 0, targetWidth, targetHeight);
-        frames.push(imgData);
-
-        const progress = Math.round(((i + 1) / totalFrames) * 50);
-        statusText.innerText = `正在捕获视频画面: ${progress}%`;
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length) {
+        handleFiles(e.target.files);
       }
+    });
 
-      statusText.innerText = '正在合成 GIF 动图...';
+    function handleFiles(files) {
+      const validFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+      if (!validFiles.length) return;
 
-      // 简易 GIF 打包逻辑
-      try {
-        const buffer = new Uint8Array(targetWidth * targetHeight * totalFrames * 5 + 1024);
-        const gifWriter = new omggif.GifWriter(buffer, targetWidth, targetHeight, { loop: 0 });
+      validFiles.forEach(file => {
+        const id = 'item_' + Math.random().toString(36).substr(2, 9);
+        const item = {
+          id,
+          file,
+          originalCanvas: null,
+          processedCanvas: null,
+          rawName: file.name.replace(/\.[^/.]+$/, "")
+        };
+        store[currentFolder].push(item);
+        processImage(item);
+      });
 
-        for (let i = 0; i < frames.length; i++) {
-          const rgba = frames[i].data;
-          const palette = [];
-          const indexedPixels = new Uint8Array(targetWidth * targetHeight);
+      renderFolders();
+      renderGrid();
+    }
 
-          // 简略调色板提取与索引
-          for (let p = 0; p < rgba.length; p += 4) {
-            const r = rgba[p] & 0xE0;
-            const g = rgba[p + 1] & 0xE0;
-            const b = rgba[p + 2] & 0xC0;
-            const color = (r << 16) | (g << 8) | b;
-            
-            let colorIdx = palette.indexOf(color);
-            if (colorIdx === -1) {
-              if (palette.length < 256) {
-                palette.push(color);
-                colorIdx = palette.length - 1;
-              } else {
-                colorIdx = 0;
-              }
-            }
-            indexedPixels[p / 4] = colorIdx;
+    function renderGrid() {
+      grid.innerHTML = '';
+      const items = store[currentFolder];
+
+      if (items.length === 0) {
+        grid.innerHTML = '<div class="empty-state">当前分类下未保存任何文件</div>';
+        downloadAllBtn.disabled = true;
+      } else {
+        items.forEach(item => {
+          createCardUI(item);
+          if (item.processedCanvas) {
+            updateCardUIReady(item);
           }
+        });
+        checkAllCompleted();
+      }
 
-          // 补齐 256 色
-          while (palette.length < 256) palette.push(0);
+      counter.innerText = `当前分类图片数: ${items.length}`;
+    }
 
-          gifWriter.addFrame(0, 0, targetWidth, targetHeight, indexedPixels, {
-            palette: palette,
-            delay: Math.round(100 / fps)
-          });
+    function createCardUI(item) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.id = item.id;
 
-          const encodeProgress = 50 + Math.round(((i + 1) / totalFrames) * 50);
-          statusText.innerText = `正在打包 GIF: ${encodeProgress}%`;
-        }
+      card.innerHTML = `
+        <div class="preview-box" id="pbox_${item.id}" title="点击图片任意位置可设该颜色为背景色">
+          <span class="state-text" id="status_${item.id}">抠图中...</span>
+        </div>
+        <div class="file-name" title="${item.file.name}">${item.file.name}</div>
+        <div class="card-actions">
+          <button class="btn btn-secondary" disabled id="dl_${item.id}">下载</button>
+          <button class="btn btn-danger" onclick="deleteCard('${item.id}')">删除</button>
+        </div>
+      `;
 
-        const gifData = buffer.subarray(0, gifWriter.end());
-        const blob = new Blob([gifData], { type: 'image/gif' });
-        
-        createdObjectUrl = URL.createObjectURL(blob);
-        gifResultImg.src = createdObjectUrl;
-        downloadBtn.href = createdObjectUrl;
+      grid.appendChild(card);
+    }
 
-        statusText.innerText = '转换完成！可以下载或删除重来。';
-        previewContainer.style.display = 'block';
+    function updateCardUIReady(item) {
+      const cardEl = document.getElementById(item.id);
+      if (!cardEl) return;
+      const previewBox = document.getElementById(`pbox_${item.id}`);
+      const btnEl = document.getElementById(`dl_${item.id}`);
 
-      } catch (err) {
-        console.error(err);
-        statusText.innerText = 'GIF 合成失败，建议选择中等/低模式重试。';
+      if (previewBox && item.processedCanvas) {
+        previewBox.innerHTML = '';
+        const displayCanvas = document.createElement('canvas');
+        displayCanvas.className = 'preview-canvas';
+        displayCanvas.width = item.processedCanvas.width;
+        displayCanvas.height = item.processedCanvas.height;
+        const dCtx = displayCanvas.getContext('2d');
+        dCtx.drawImage(item.processedCanvas, 0, 0);
+        previewBox.appendChild(displayCanvas);
+
+        // 点击预览图进行吸管取色
+        previewBox.onclick = (e) => pickColorFromCard(e, item);
+      }
+
+      if (btnEl) {
+        btnEl.disabled = false;
+        btnEl.onclick = () => downloadCanvas(item.processedCanvas, `${currentFolder}_${item.rawName}.png`);
       }
     }
+
+    function pickColorFromCard(e, item) {
+      if (!item.originalCanvas) return;
+      const previewBox = document.getElementById(`pbox_${item.id}`);
+      const rect = previewBox.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      // 计算映射到原图的比例坐标
+      const scaleX = item.originalCanvas.width / rect.width;
+      const scaleY = item.originalCanvas.height / rect.height;
+      const targetX = Math.floor(x * scaleX);
+      const targetY = Math.floor(y * scaleY);
+
+      const ctx = item.originalCanvas.getContext('2d');
+      const pixel = ctx.getImageData(targetX, targetY, 1, 1).data;
+
+      targetColor = { r: pixel[0], g: pixel[1], b: pixel[2] };
+      updateColorDisplay();
+      reProcessCurrentFolder();
+    }
+
+    function deleteCard(id) {
+      store[currentFolder] = store[currentFolder].filter(item => item.id !== id);
+      renderFolders();
+      renderGrid();
+    }
+
+    function reProcessCurrentFolder() {
+      store[currentFolder].forEach(item => {
+        if (item.originalCanvas) {
+          applyCutout(item);
+        } else {
+          processImage(item);
+        }
+      });
+    }
+
+    function processImage(item) {
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const origCanvas = document.createElement('canvas');
+          origCanvas.width = img.width;
+          origCanvas.height = img.height;
+          const oCtx = origCanvas.getContext('2d');
+          oCtx.drawImage(img, 0, 0);
+          item.originalCanvas = origCanvas;
+
+          applyCutout(item);
+        };
+        img.src = e.target.result;
+      };
+
+      reader.readAsDataURL(item.file);
+    }
+
+    function applyCutout(item) {
+      const tolerance = parseInt(toleranceInput.value, 10);
+      const canvas = document.createElement('canvas');
+      canvas.width = item.originalCanvas.width;
+      canvas.height = item.originalCanvas.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(item.originalCanvas, 0, 0);
+
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imgData.data;
+
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i], g = data[i+1], b = data[i+2];
+        const diff = Math.abs(r - targetColor.r) + Math.abs(g - targetColor.g) + Math.abs(b - targetColor.b);
+        if (diff <= tolerance) {
+          data[i + 3] = 0;
+        }
+      }
+
+      ctx.putImageData(imgData, 0, 0);
+      item.processedCanvas = canvas;
+
+      if (store[currentFolder].some(i => i.id === item.id)) {
+        updateCardUIReady(item);
+        checkAllCompleted();
+      }
+    }
+
+    function downloadCanvas(canvas, filename) {
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const a = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }, 'image/png');
+    }
+
+    function checkAllCompleted() {
+      const items = store[currentFolder];
+      const allReady = items.length > 0 && items.every(i => i.processedCanvas !== null);
+      downloadAllBtn.disabled = !allReady;
+    }
+
+    downloadAllBtn.addEventListener('click', () => {
+      store[currentFolder].forEach((item, index) => {
+        if (item.processedCanvas) {
+          setTimeout(() => {
+            downloadCanvas(item.processedCanvas, `${currentFolder}_${item.rawName}.png`);
+          }, index * 250);
+        }
+      });
+    });
   </script>
 </body>
 </html>
