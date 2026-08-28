@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BACKGROUND REMOVER</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      border-radius: 0 !important;
+    }
+
+    body {
+      background-color: #ffffff;
+      color: #000000;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      padding: 40px 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      border-bottom: 2px solid #000000;
+      padding-bottom: 20px;
+      margin-bottom: 30px;
+    }
+
+    h1 {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .sub-title {
+      font-size: 12px;
+      color: #666666;
+      margin-top: 6px;
+      letter-spacing: 1px;
+    }
+
+    .upload-area {
+      border: 1px dashed #000000;
+      padding: 40px;
+      text-align: center;
+      background: #ffffff;
+      cursor: pointer;
+      margin-bottom: 30px;
+      transition: background-color 0.2s;
+    }
+
+    .upload-area:hover {
+      background-color: #f9f9f9;
+    }
+
+    .upload-label {
+      display: inline-block;
+      font-size: 13px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    #fileInput {
+      display: none;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #eeeeee;
+    }
+
+    .btn {
+      background: #000000;
+      color: #ffffff;
+      border: 1px solid #000000;
+      padding: 8px 16px;
+      font-size: 12px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    .btn:hover {
+      background: #333333;
+    }
+
+    .btn:disabled {
+      background: #cccccc;
+      border-color: #cccccc;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: #ffffff;
+      color: #000000;
+    }
+
+    .btn-secondary:hover {
+      background: #f0f0f0;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      border: 1px solid #000000;
+      padding: 12px;
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .preview-box {
+      width: 100%;
+      height: 200px;
+      background-color: #f5f5f5;
+      background-image: linear-gradient(45deg, #e0e0e0 25%, transparent 25%),
+                        linear-gradient(-45deg, #e0e0e0 25%, transparent 25%),
+                        linear-gradient(45deg, transparent 75%, #e0e0e0 75%),
+                        linear-gradient(-45deg, transparent 75%, #e0e0e0 75%);
+      background-size: 16px 16px;
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+
+    .preview-box img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    .status {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #666666;
+    }
+
+    .info {
+      font-size: 11px;
+      margin-bottom: 10px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card-actions {
+      margin-top: auto;
+      display: flex;
+      gap: 8px;
+    }
+
+    .card-actions .btn {
+      flex: 1;
+      padding: 6px 0;
+      text-align: center;
+    }
+
+    .empty-state {
+      grid-column: 1 / -1;
+      text-align: center;
+      color: #999999;
+      font-size: 12px;
+      letter-spacing: 1px;
+      padding: 60px 0;
+      text-transform: uppercase;
+    }
+  </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.4.5/dist/index.js"></script>
+</head>
+<body>
+
+  <header>
+    <h1>Batch Image Background Remover</h1>
+    <div class="sub-title">Client-side processing / Zero server upload</div>
+  </header>
+
+  <div class="upload-area" id="dropZone">
+    <label class="upload-label" for="fileInput">Select or Drag Images Here</label>
+    <input type="file" id="fileInput" multiple accept="image/*" />
+  </div>
+
+  <div class="controls">
+    <div class="status" id="counter">Items: 0</div>
+    <button class="btn" id="downloadAllBtn" disabled>Download All</button>
+  </div>
+
+  <div class="grid" id="grid">
+    <div class="empty-state">No files selected</div>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const dropZone = document.getElementById('dropZone');
+    const grid = document.getElementById('grid');
+    const counter = document.getElementById('counter');
+    const downloadAllBtn = document.getElementById('downloadAllBtn');
+
+    let processedItems = [];
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.style.backgroundColor = '#f0f0f0';
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.style.backgroundColor = '#ffffff';
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.style.backgroundColor = '#ffffff';
+      if (e.dataTransfer.files.length) {
+        handleFiles(e.dataTransfer.files);
+      }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length) {
+        handleFiles(e.target.files);
+      }
+    });
+
+    function handleFiles(files) {
+      const validFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+      if (!validFiles.length) return;
+
+      if (grid.querySelector('.empty-state')) {
+        grid.innerHTML = '';
+      }
+
+      validFiles.forEach(file => {
+        const id = 'item_' + Math.random().toString(36).substr(2, 9);
+        const item = {
+          id,
+          file,
+          outputBlob: null,
+          fileName: file.name.replace(/\.[^/.]+$/, "") + "_nobg.png"
+        };
+        processedItems.push(item);
+        createCard(item);
+        processImage(item);
+      });
+
+      updateCounter();
+    }
+
+    function createCard(item) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.id = item.id;
+
+      card.innerHTML = `
+        <div class="preview-box">
+          <span class="status" id="status_${item.id}">Processing...</span>
+        </div>
+        <div class="info" title="${item.file.name}">${item.file.name}</div>
+        <div class="card-actions">
+          <button class="btn btn-secondary" disabled id="dl_${item.id}">Download</button>
+        </div>
+      `;
+
+      grid.appendChild(card);
+    }
+
+    async function processImage(item) {
+      const statusEl = document.getElementById(`status_${item.id}`);
+      const btnEl = document.getElementById(`dl_${item.id}`);
+      const cardEl = document.getElementById(item.id);
+
+      try {
+        const resultBlob = await imglyRemoveBackground(item.file);
+        item.outputBlob = resultBlob;
+
+        const url = URL.createObjectURL(resultBlob);
+        const previewBox = cardEl.querySelector('.preview-box');
+        previewBox.innerHTML = `<img src="${url}" alt="Preview" />`;
+
+        btnEl.disabled = false;
+        btnEl.onclick = () => triggerDownload(resultBlob, item.fileName);
+
+        checkAllCompleted();
+      } catch (err) {
+        statusEl.innerText = 'Error';
+        statusEl.style.color = '#ff0000';
+      }
+    }
+
+    function triggerDownload(blob, filename) {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }
+
+    function checkAllCompleted() {
+      const allReady = processedItems.length > 0 && processedItems.every(i => i.outputBlob !== null);
+      if (allReady) {
+        downloadAllBtn.disabled = false;
+      }
+    }
+
+    downloadAllBtn.addEventListener('click', () => {
+      processedItems.forEach((item, index) => {
+        if (item.outputBlob) {
+          setTimeout(() => {
+            triggerDownload(item.outputBlob, item.fileName);
+          }, index * 250);
+        }
+      });
+    });
+
+    function updateCounter() {
+      counter.innerText = `Items: ${processedItems.length}`;
+    }
+  </script>
+</body>
+</html>
