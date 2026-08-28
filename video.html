@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Eira 视频转 GIF</title>
-  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
   <style>
     /* 核心视觉风格：极简黑白、方正硬朗、无圆角、零蓝色光效 */
     * {
@@ -49,7 +49,7 @@
       letter-spacing: 1px;
     }
 
-    /* 说明按钮与弹窗 */
+    /* 说明按钮与小尺寸弹窗 */
     .help-btn {
       background: #ffffff;
       color: #000000;
@@ -82,30 +82,30 @@
     .modal-box {
       background: #ffffff;
       border: 2px solid #000000;
-      padding: 24px;
-      width: 90%;
-      max-width: 480px;
-      box-shadow: 8px 8px 0px #000000;
+      padding: 18px 20px;
+      width: 85%;
+      max-width: 340px; /* 缩小了宽度 */
+      box-shadow: 6px 6px 0px #000000;
     }
 
     .modal-title {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 700;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
       border-bottom: 1px solid #000000;
-      padding-bottom: 8px;
+      padding-bottom: 6px;
       letter-spacing: 1px;
     }
 
     .modal-content {
-      font-size: 12px;
-      line-height: 1.8;
+      font-size: 11px;
+      line-height: 1.7;
       color: #333333;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
     }
 
     .modal-content p {
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
 
     .modal-close-btn {
@@ -113,7 +113,7 @@
       background: #000000;
       color: #ffffff;
       border: 1px solid #000000;
-      padding: 8px 0;
+      padding: 6px 0;
       font-size: 11px;
       cursor: pointer;
       letter-spacing: 1px;
@@ -209,7 +209,7 @@
     .status-text {
       font-size: 12px;
       letter-spacing: 1px;
-      color: #666666;
+      color: #000000;
       margin-bottom: 16px;
       font-weight: 600;
     }
@@ -265,17 +265,17 @@
     <button class="help-btn" id="openHelpBtn">使用说明</button>
   </header>
 
-  <!-- 使用说明弹窗 -->
+  <!-- 精简小尺寸使用说明弹窗 -->
   <div class="modal-overlay" id="helpModal">
     <div class="modal-box">
-      <div class="modal-title">使用说明 & 限制须知</div>
+      <div class="modal-title">使用说明与须知</div>
       <div class="modal-content">
-        <p><strong>文件限制：</strong>仅支持 MP4 格式，文件大小限制 <strong>30MB 以内</strong>，时长限制 <strong>2 分钟以内</strong>。</p>
-        <p><strong>本地处理：</strong>所有转换全在手机或电脑本地完成，不消耗服务器流量，保护隐私。</p>
-        <p><strong>压缩说明：</strong>GIF 占用空间远大于视频，要想文件小必须牺牲画质：</p>
-        <p>低压缩 (较清晰)：约压缩 40% 体积，较省空间。</p>
-        <p>中等压缩 (建议)：约压缩 65% 体积，画质与大小较平衡。</p>
-        <p>高压缩 (极小体积)：约压缩 80% 体积，画质较低但极小。</p>
+        <p><strong>文件限制：</strong>MP4 格式，限制 <strong>30MB / 2分钟以内</strong>。</p>
+        <p><strong>本地加密：</strong>视频全部在手机/电脑本地运算转换，零泄露风险。</p>
+        <p><strong>档位说明：</strong></p>
+        <p>低压缩：保留较多细节，体积稍大。</p>
+        <p>中压缩 (推荐)：平衡画质与体积。</p>
+        <p>高压缩：极大缩减体积，方便传输。</p>
       </div>
       <button class="modal-close-btn" id="closeHelpBtn">关闭</button>
     </div>
@@ -305,7 +305,7 @@
 
   <!-- 状态显示与预览下载 -->
   <div class="process-section" id="processSection">
-    <div class="status-text" id="statusText">等待转换...</div>
+    <div class="status-text" id="statusText">正在准备核心组件...</div>
     <div id="previewContainer" style="display: none;">
       <div class="preview-box">
         <img id="gifPreview" src="" alt="GIF 预览" />
@@ -337,15 +337,27 @@
     document.getElementById('closeHelpBtn').onclick = () => helpModal.style.display = 'none';
     helpModal.onclick = (e) => { if(e.target === helpModal) helpModal.style.display = 'none'; };
 
-    async function initFFmpeg() {
-      if (isFFmpegLoaded) return true;
+    // 强行指定稳定源强制加载 WebAssembly 内核
+    async function forceInitFFmpeg() {
+      if (isFFmpegLoaded && ffmpeg) return true;
       try {
-        ffmpeg = createFFmpeg({ log: false });
+        ffmpeg = createFFmpeg({
+          log: true,
+          corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
+        });
+
+        ffmpeg.setProgress(({ ratio }) => {
+          if (ratio >= 0 && ratio <= 1) {
+            statusText.innerText = `正在转码处理中: ${Math.round(ratio * 100)}%`;
+          }
+        });
+
+        statusText.innerText = '正在从稳定节点装载解码引擎 (首次约需5-15秒)...';
         await ffmpeg.load();
         isFFmpegLoaded = true;
         return true;
       } catch (e) {
-        console.error("FFmpeg 加载失败:", e);
+        console.error("FFmpeg 强制装载失败:", e);
         return false;
       }
     }
@@ -379,7 +391,7 @@
 
     async function handleVideo(file) {
       if (file.size > 30 * 1024 * 1024) {
-        alert(`视频文件过大 (${(file.size / (1024 * 1024)).toFixed(1)}MB)，请上传 30MB 居内的视频！`);
+        alert(`视频文件 (${(file.size / (1024 * 1024)).toFixed(1)}MB) 超过限制，最大支持 30MB！`);
         return;
       }
 
@@ -388,13 +400,12 @@
       videoCheck.onloadedmetadata = function() {
         window.URL.revokeObjectURL(videoCheck.src);
         if (videoCheck.duration > 120) {
-          alert(`视频时长为 ${Math.round(videoCheck.duration)} 秒，超过了 2 分钟限制！请剪辑后再试。`);
+          alert(`视频时长为 ${Math.round(videoCheck.duration)} 秒，超过了 2 分钟限制！`);
           return;
         }
         startConversion(file);
       };
       videoCheck.onerror = function() {
-        // 如果提取时长失败，尝试直接转换
         startConversion(file);
       };
       videoCheck.src = URL.createObjectURL(file);
@@ -405,20 +416,19 @@
       processSection.style.display = 'block';
       previewContainer.style.display = 'none';
 
-      statusText.innerText = '正在加载内核组件，请稍候...';
-      const loaded = await initFFmpeg();
+      const loaded = await forceInitFFmpeg();
       if (!loaded) {
-        statusText.innerText = '组件加载失败，请检查网络连接后刷新页面重试！';
+        statusText.innerText = '引擎网络连接阻断，请尝试刷新页面重试。';
         restartBtn.style.display = 'inline-block';
         return;
       }
 
       try {
-        statusText.innerText = '正在读取文件数据...';
-        const inputName = 'input_' + Date.now() + '.mp4';
+        statusText.innerText = '正在载入视频数据...';
+        const inputName = 'input_file.mp4';
         ffmpeg.FS('writeFile', inputName, await fetchFile(file));
 
-        statusText.innerText = '正在转换 GIF (请勿关闭页面)...';
+        statusText.innerText = '准备生成 GIF 动图...';
 
         const quality = qualitySelect.value;
         let scale, fps;
@@ -437,7 +447,7 @@
           'output.gif'
         );
 
-        statusText.innerText = '生成中...';
+        statusText.innerText = '生成完毕，正在渲染预览...';
 
         const data = ffmpeg.FS('readFile', 'output.gif');
         const gifBlob = new Blob([data.buffer], { type: 'image/gif' });
@@ -457,7 +467,7 @@
 
       } catch (error) {
         console.error(error);
-        statusText.innerText = '处理失败: ' + (error.message || '格式不支持或文件损坏');
+        statusText.innerText = '转换异常：建议更换极短视频或标准 MP4 格式重试。';
         restartBtn.style.display = 'inline-block';
       }
     }
