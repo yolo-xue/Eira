@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Eira 视频转 GIF</title>
-  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
   <style>
     /* 核心视觉风格：极简黑白、方正硬朗、无圆角、零蓝色光效 */
     * {
@@ -124,7 +124,7 @@
       background: #333333;
     }
 
-    /* 优化后的极简黑色美化设置面板 */
+    /* 极简设置面板 */
     .config-panel {
       border: 1px solid #000000;
       padding: 16px 20px;
@@ -155,7 +155,7 @@
       color: #333333;
     }
 
-    /* 自定义美化下拉框 */
+    /* 美化下拉框 */
     .select-wrapper {
       position: relative;
       width: 100%;
@@ -294,21 +294,22 @@
     <button class="help-btn" id="openHelpBtn">使用说明</button>
   </header>
 
+  <!-- 使用说明弹窗 -->
   <div class="modal-overlay" id="helpModal">
     <div class="modal-box">
       <div class="modal-title">使用说明与须知</div>
       <div class="modal-content">
-        <p><strong>文件限制：</strong>仅限 MP4 格式，文件上限 <strong>60MB 以内</strong>。</p>
-        <p><strong>无时长限制：</strong>不限制视频时长，短视频转换更迅速。</p>
-        <p><strong>本地处理：</strong>所有运算均在浏览器本地完成，保护隐私。</p>
+        <p><strong>时长限制：</strong>仅支持 <strong>1 分钟以内</strong>的视频。</p>
+        <p><strong>本地处理：</strong>数据完全在浏览器本地转换，不上交服务器。</p>
         <p><strong>转换模式：</strong></p>
-        <p>不压缩：只转 GIF，完全保留原画质与分辨率。</p>
-        <p>压缩模式：可根据需求有效减小导出文件体积。</p>
+        <p>不压缩：保留原始画质与清晰度。</p>
+        <p>压缩模式：缩小像素与帧率，大幅缩减文件体积。</p>
       </div>
       <button class="modal-close-btn" id="closeHelpBtn">关闭</button>
     </div>
   </div>
 
+  <!-- 选项面板 -->
   <div class="config-panel">
     <div class="config-title">转换与压缩选项</div>
     <div class="config-row">
@@ -326,16 +327,18 @@
     </div>
   </div>
 
+  <!-- 上传区域 -->
   <div class="upload-area" id="dropZone">
-    <label class="upload-label" for="videoInput">点击选择视频或拖拽 MP4 至此处 (最大 60MB)</label>
+    <label class="upload-label" for="videoInput">点击选择视频或拖拽 MP4 至此处 (限制 1 分钟以内)</label>
     <input type="file" id="videoInput" accept="video/mp4,video/*" />
   </div>
 
+  <!-- 处理与预览区域 -->
   <div class="process-section" id="processSection">
     <div class="status-text" id="statusText">正在准备核心组件...</div>
     
     <div id="errorControl" style="display: none; margin-top: 15px;">
-      <button class="btn btn-secondary" id="resetBtn">重置并重新上传</button>
+      <button class="btn btn-secondary" id="resetBtn">重置页面并重试</button>
     </div>
 
     <div id="previewContainer" style="display: none;">
@@ -371,28 +374,45 @@
     document.getElementById('closeHelpBtn').onclick = () => helpModal.style.display = 'none';
     helpModal.onclick = (e) => { if(e.target === helpModal) helpModal.style.display = 'none'; };
 
+    // 多重 CDN 自动降级切源
+    const CDN_SOURCES = [
+      'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js',
+      'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/ffmpeg-core/0.11.0/ffmpeg-core.js'
+    ];
+
     async function forceInitFFmpeg() {
       if (isFFmpegLoaded && ffmpeg) return true;
-      try {
-        ffmpeg = createFFmpeg({
-          log: true,
-          corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
-        });
 
-        ffmpeg.setProgress(({ ratio }) => {
-          if (ratio >= 0 && ratio <= 1) {
-            statusText.innerText = `正在转码处理中: ${Math.round(ratio * 100)}%`;
-          }
-        });
+      for (let i = 0; i < CDN_SOURCES.length; i++) {
+        const cdnUrl = CDN_SOURCES[i];
+        try {
+          statusText.innerText = `正在连接加速引擎 (节点 ${i + 1}/${CDN_SOURCES.length})...`;
+          ffmpeg = createFFmpeg({
+            log: false,
+            corePath: cdnUrl
+          });
 
-        statusText.innerText = '正在装载解码引擎...';
-        await ffmpeg.load();
-        isFFmpegLoaded = true;
-        return true;
-      } catch (e) {
-        console.error("FFmpeg 装载失败:", e);
-        return false;
+          ffmpeg.setProgress(({ ratio }) => {
+            if (ratio >= 0 && ratio <= 1) {
+              statusText.innerText = `正在转码处理中: ${Math.round(ratio * 100)}%`;
+            }
+          });
+
+          // 设置 8 秒超时检测，失败自动试下一个节点
+          const loadPromise = ffmpeg.load();
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('CDN超时')), 8000)
+          );
+
+          await Promise.race([loadPromise, timeoutPromise]);
+          isFFmpegLoaded = true;
+          return true;
+        } catch (e) {
+          console.warn(`节点 ${cdnUrl} 加载超时/失败，尝试下一个...`, e);
+        }
       }
+      return false;
     }
 
     dropZone.addEventListener('click', () => videoInput.click());
@@ -430,13 +450,26 @@
     resetBtn.onclick = resetUI;
 
     async function handleVideo(file) {
-      // 提升上限至 60MB
-      if (file.size > 60 * 1024 * 1024) {
-        alert(`视频文件 (${(file.size / (1024 * 1024)).toFixed(1)}MB) 超过限制，最大支持 60MB！`);
-        return;
-      }
+      // 视频时长严格限制在 1 分钟 (60 秒) 以内
+      const videoElement = document.createElement('video');
+      videoElement.preload = 'metadata';
 
-      startConversion(file);
+      videoElement.onloadedmetadata = function() {
+        window.URL.revokeObjectURL(videoElement.src);
+        if (videoElement.duration > 60) {
+          alert(`视频时长为 ${Math.round(videoElement.duration)} 秒，超过了 1 分钟（60秒）限制！`);
+          resetUI();
+          return;
+        }
+        startConversion(file);
+      };
+
+      videoElement.onerror = function() {
+        // 如果解析元数据失败，直接尝试转码
+        startConversion(file);
+      };
+
+      videoElement.src = URL.createObjectURL(file);
     }
 
     async function startConversion(file) {
@@ -447,7 +480,7 @@
 
       const loaded = await forceInitFFmpeg();
       if (!loaded) {
-        statusText.innerText = '引擎网络连接阻断，请重试。';
+        statusText.innerText = '网络连接异常，解码内核加载失败。请重试或更换网络。';
         errorControl.style.display = 'block';
         return;
       }
@@ -463,10 +496,10 @@
         let ffmpegArgs = [];
 
         if (mode === 'raw') {
-          // 不压缩，保持原画质与参数导出
+          // 不压缩模式
           ffmpegArgs = ['-i', inputName, 'output.gif'];
         } else {
-          // 压缩模式设置
+          // 压缩模式
           let scale, fps;
           switch(mode) {
             case 'high_compress':   scale = 320; fps = 8; break;
@@ -503,7 +536,7 @@
 
       } catch (error) {
         console.error(error);
-        statusText.innerText = '转换失败，格式可能不兼容。';
+        statusText.innerText = '转换失败：建议检查视频格式或更换短视频重试。';
         errorControl.style.display = 'block';
       }
     }
