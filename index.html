@@ -186,12 +186,15 @@
       letter-spacing: 1px;
     }
 
-    .config-input {
+    .config-input, .config-select {
       border: 1px solid #000000;
       padding: 4px 8px;
       font-size: 11px;
       background: #ffffff;
       color: #000000;
+    }
+
+    .config-input {
       width: 120px;
     }
 
@@ -381,11 +384,11 @@
 
   <div class="modal-overlay" id="helpModal">
     <div class="modal-box">
-      <div class="modal-title">使用说明 & 取色抠图</div>
+      <div class="modal-title">使用说明 & 目标色保留/消除</div>
       <div class="modal-content">
-        <p><strong>1. 默认抠白底：</strong>系统默认会扣除图片中的纯白/偏白背景。</p>
-        <p><strong>2. 吸管取色（抠非纯白）：</strong>如果图片背景是绿色、蓝色或其他单色，只需**直接点击下方预览图上的背景位置**，系统会自动读取该颜色并清除。</p>
-        <p><strong>3. 容差调节：</strong>调大容差可以消除边缘残留杂色；调小容差可防止误扣主体。</p>
+        <p><strong>1. 抠图模式：</strong>默认模式为“只保留目标色”。只有与目标色相近的部分会被保留，其余所有背景颜色均会被清除。</p>
+        <p><strong>2. 吸管取色：</strong>直接在预览图上点击你想要保留（或清除）的主体颜色，即可进行精准吸管提取。</p>
+        <p><strong>3. 容差调节：</strong>调大容差可以保留更多相近色相的主体区域；调小容差可以让颜色匹配更加精准。</p>
       </div>
       <button class="modal-close-btn" id="closeHelpBtn">关闭</button>
     </div>
@@ -404,13 +407,20 @@
 
   <div class="config-panel">
     <div class="config-group">
-      <label>扣除目标色:</label>
-      <div class="color-picker-box" id="colorBox" title="点击预览图中的任意颜色进行自动捕捉"></div>
-      <button class="btn btn-secondary" id="resetColorBtn" style="padding: 2px 6px; font-size: 10px;">重置为白色</button>
+      <label for="modeSelect">抠图模式:</label>
+      <select id="modeSelect" class="config-select">
+        <option value="keepTarget" selected>只保留目标色 (清除其他颜色)</option>
+        <option value="removeTarget">清除目标色 (保留其他颜色)</option>
+      </select>
     </div>
     <div class="config-group">
-      <label for="toleranceInput">背景容差 (<span id="tolValue">30</span>):</label>
-      <input type="range" id="toleranceInput" class="range-slider" min="5" max="150" value="30" />
+      <label>目标颜色:</label>
+      <div class="color-picker-box" id="colorBox" title="点击预览图中的任意颜色进行自动捕捉"></div>
+      <button class="btn btn-secondary" id="resetColorBtn" style="padding: 2px 6px; font-size: 10px;">重置为黑色</button>
+    </div>
+    <div class="config-group">
+      <label for="toleranceInput">颜色容差 (<span id="tolValue">50</span>):</label>
+      <input type="range" id="toleranceInput" class="range-slider" min="5" max="250" value="50" />
     </div>
   </div>
 
@@ -434,8 +444,8 @@
     };
     let currentFolder = '默认分类';
 
-    // 默认背景目标色为白色 (RGB: 255, 255, 255)
-    let targetColor = { r: 255, g: 255, b: 255 };
+    // 默认目标颜色设为黑色 (RGB: 0, 0, 0)，可根据需要点击更改
+    let targetColor = { r: 0, g: 0, b: 0 };
 
     const fileInput = document.getElementById('fileInput');
     const dropZone = document.getElementById('dropZone');
@@ -444,6 +454,7 @@
     const downloadAllBtn = document.getElementById('downloadAllBtn');
     const toleranceInput = document.getElementById('toleranceInput');
     const tolValue = document.getElementById('tolValue');
+    const modeSelect = document.getElementById('modeSelect');
     const folderTabs = document.getElementById('folderTabs');
     const newFolderInput = document.getElementById('newFolderInput');
     const addFolderBtn = document.getElementById('addFolderBtn');
@@ -458,13 +469,17 @@
     renderFolders();
     updateColorDisplay();
 
+    modeSelect.addEventListener('change', () => {
+      reProcessCurrentFolder();
+    });
+
     toleranceInput.addEventListener('input', (e) => {
       tolValue.innerText = e.target.value;
       reProcessCurrentFolder();
     });
 
     resetColorBtn.onclick = () => {
-      targetColor = { r: 255, g: 255, b: 255 };
+      targetColor = { r: 0, g: 0, b: 0 };
       updateColorDisplay();
       reProcessCurrentFolder();
     };
@@ -571,7 +586,7 @@
       card.id = item.id;
 
       card.innerHTML = `
-        <div class="preview-box" id="pbox_${item.id}" title="点击图片任意位置可设该颜色为背景色">
+        <div class="preview-box" id="pbox_${item.id}" title="点击图片任意位置取色">
           <span class="state-text" id="status_${item.id}">抠图中...</span>
         </div>
         <div class="file-name" title="${item.file.name}">${item.file.name}</div>
@@ -670,6 +685,7 @@
 
     function applyCutout(item) {
       const tolerance = parseInt(toleranceInput.value, 10);
+      const mode = modeSelect.value; // keepTarget (只保留目标色) 或 removeTarget (清除目标色)
       const canvas = document.createElement('canvas');
       canvas.width = item.originalCanvas.width;
       canvas.height = item.originalCanvas.height;
@@ -682,8 +698,17 @@
       for (let i = 0; i < data.length; i += 4) {
         const r = data[i], g = data[i+1], b = data[i+2];
         const diff = Math.abs(r - targetColor.r) + Math.abs(g - targetColor.g) + Math.abs(b - targetColor.b);
-        if (diff <= tolerance) {
-          data[i + 3] = 0;
+
+        if (mode === 'keepTarget') {
+          // 只保留目标色模式：差值大于容差的（非目标色），全变透明
+          if (diff > tolerance) {
+            data[i + 3] = 0;
+          }
+        } else {
+          // 清除目标色模式：差值小于等于容差的（目标色），变透明
+          if (diff <= tolerance) {
+            data[i + 3] = 0;
+          }
         }
       }
 
