@@ -6,7 +6,6 @@
   <title>Eira 视频转 GIF</title>
   <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
   <style>
-    /* 核心视觉风格：极简黑白、方正硬朗、无圆角、零蓝色光效 */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -34,6 +33,430 @@
       justify-content: space-between;
       align-items: flex-end;
     }
+
+    h1 {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .sub-title {
+      font-size: 11px;
+      color: #666666;
+      margin-top: 4px;
+      letter-spacing: 1px;
+    }
+
+    /* 说明按钮与弹窗 */
+    .help-btn {
+      background: #ffffff;
+      color: #000000;
+      border: 1px solid #000000;
+      padding: 4px 10px;
+      font-size: 11px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      font-weight: 600;
+    }
+
+    .help-btn:hover {
+      background: #000000;
+      color: #ffffff;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .modal-box {
+      background: #ffffff;
+      border: 2px solid #000000;
+      padding: 24px;
+      width: 90%;
+      max-width: 480px;
+      box-shadow: 8px 8px 0px #000000;
+    }
+
+    .modal-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      border-bottom: 1px solid #000000;
+      padding-bottom: 8px;
+      letter-spacing: 1px;
+    }
+
+    .modal-content {
+      font-size: 12px;
+      line-height: 1.8;
+      color: #333333;
+      margin-bottom: 20px;
+    }
+
+    .modal-content p {
+      margin-bottom: 8px;
+    }
+
+    .modal-close-btn {
+      width: 100%;
+      background: #000000;
+      color: #ffffff;
+      border: 1px solid #000000;
+      padding: 8px 0;
+      font-size: 11px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      font-weight: 600;
+    }
+
+    .modal-close-btn:hover {
+      background: #333333;
+    }
+
+    /* 压缩设置面板 */
+    .config-panel {
+      border: 1px solid #000000;
+      padding: 16px;
+      margin-bottom: 24px;
+      background: #ffffff;
+    }
+
+    .config-title {
+      font-size: 11px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .config-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .config-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .config-group label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+
+    .config-select {
+      border: 1px solid #000000;
+      padding: 4px 8px;
+      font-size: 11px;
+      background: #ffffff;
+      color: #000000;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+    
+    .config-select:focus {
+      background: #f9f9f9;
+    }
+
+    /* 上传区域 */
+    .upload-area {
+      border: 1px dashed #000000;
+      padding: 40px 20px;
+      text-align: center;
+      background: #ffffff;
+      cursor: pointer;
+      margin-bottom: 24px;
+    }
+
+    .upload-area:hover, .upload-area:active {
+      background-color: #f5f5f5;
+    }
+
+    .upload-label {
+      font-size: 12px;
+      letter-spacing: 1px;
+      font-weight: 600;
+      cursor: pointer;
+      display: block;
+    }
+
+    #videoInput {
+      display: none;
+    }
+
+    /* 处理与预览区域 */
+    .process-section {
+      text-align: center;
+      margin-bottom: 24px;
+      display: none;
+    }
+
+    .status-text {
+      font-size: 12px;
+      letter-spacing: 1px;
+      color: #666666;
+      margin-bottom: 16px;
+      font-weight: 600;
+    }
+
+    .preview-box {
+      border: 1px solid #000000;
+      padding: 10px;
+      background: #fafafa;
+      background-image: linear-gradient(45deg, #eee 25%, transparent 25%),
+                        linear-gradient(-45deg, #eee 25%, transparent 25%),
+                        linear-gradient(45deg, transparent 75%, #eee 75%),
+                        linear-gradient(-45deg, transparent 75%, #eee 75%);
+      background-size: 12px 12px;
+      background-position: 0 0, 0 6px, 6px -6px, -6px 0px;
+      margin-bottom: 16px;
+      max-width: 100%;
+      display: inline-block;
+    }
+
+    .preview-box img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    /* 按钮样式 */
+    .btn {
+      background: #000000;
+      color: #ffffff;
+      border: 1px solid #000000;
+      padding: 10px 20px;
+      font-size: 11px;
+      letter-spacing: 1px;
+      cursor: pointer;
+      font-weight: 600;
+      display: inline-block;
+      text-decoration: none;
+    }
+
+    .btn:hover, .btn:active {
+      background: #333333;
+      border-color: #333333;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div>
+      <h1>视频转 GIF 动图</h1>
+      <div class="sub-title">Eira 工具箱</div>
+    </div>
+    <button class="help-btn" id="openHelpBtn">使用说明</button>
+  </header>
+
+  <div class="modal-overlay" id="helpModal">
+    <div class="modal-box">
+      <div class="modal-title">使用说明 & 限制须知</div>
+      <div class="modal-content">
+        <p><strong>文件限制：</strong>仅支持 MP4 格式，文件大小限制 <strong>30MB 以内</strong>，时长限制 <strong>2 分钟以内</strong>。</p>
+        <p><strong>本地处理：</strong>所有转换全在手机或电脑本地完成，不消耗服务器流量，保护隐私。</p>
+        <p><strong>压缩说明：</strong>GIF 占用空间远大于视频，要想文件小必须牺牲画质：</p>
+        <p>低压缩 (极高画质)：体积几乎不减，易导致加载缓慢。</p>
+        <p>中等压缩 (建议)：约压缩 65% 体积，画质与大小较平衡。</p>
+        <p>高压缩 (极小体积)：约压缩 80% 体积，画质有所降低但极省空间。</p>
+      </div>
+      <button class="modal-close-btn" id="closeHelpBtn">关闭</button>
+    </div>
+  </div>
+
+  <div class="config-panel">
+    <div class="config-title">GIF 压缩档位设置</div>
+    <div class="config-row">
+      <div class="config-group">
+        <label for="qualitySelect">体积压缩程度:</label>
+        <select id="qualitySelect" class="config-select">
+          <option value="high_compress">高压缩 (约缩小 80% 体积, 画质较低但极小)</option>
+          <option value="medium_compress" selected>中等压缩 (约缩小 65% 体积, 平衡推荐)</option>
+          <option value="low_compress">低压缩 (约缩小 40% 体积, 较清晰)</option>
+          <option value="no_compress">原画质导出 (几乎不压缩, 体积极其庞大)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="upload-area" id="dropZone">
+    <label class="upload-label" for="videoInput">点击选择视频或拖拽 MP4 至此处 (最大 30MB / 2分钟)</label>
+    <input type="file" id="videoInput" accept="video/mp4" />
+  </div>
+
+  <div class="process-section" id="processSection">
+    <div class="status-text" id="statusText">等待转换...</div>
+    <div id="previewContainer" style="display: none;">
+      <div class="preview-box">
+        <img id="gifPreview" src="" alt="GIF 预览" />
+      </div>
+      <div>
+        <a href="" id="downloadBtn" class="btn" download="eira_export.gif">下载 GIF</a>
+        <button class="btn" id="restartBtn" style="margin-left: 10px; background:#ffffff; color:#000000;">重新上传</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { createFFmpeg, fetchFile } = FFmpeg;
+    const ffmpeg = createFFmpeg({ log: false }); 
+
+    const videoInput = document.getElementById('videoInput');
+    const dropZone = document.getElementById('dropZone');
+    const processSection = document.getElementById('processSection');
+    const statusText = document.getElementById('statusText');
+    const previewContainer = document.getElementById('previewContainer');
+    const gifPreview = document.getElementById('gifPreview');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const restartBtn = document.getElementById('restartBtn');
+    const qualitySelect = document.getElementById('qualitySelect');
+
+    const helpModal = document.getElementById('helpModal');
+    document.getElementById('openHelpBtn').onclick = () => helpModal.style.display = 'flex';
+    document.getElementById('closeHelpBtn').onclick = () => helpModal.style.display = 'none';
+    helpModal.onclick = (e) => { if(e.target === helpModal) helpModal.style.display = 'none'; };
+
+    let isFFmpegLoaded = false;
+
+    async function loadFFmpeg() {
+      if (isFFmpegLoaded) return;
+      statusText.innerText = '正在本地加载视频核心 (首次加载需下载组件，请稍候)...';
+      await ffmpeg.load();
+      isFFmpegLoaded = true;
+      statusText.innerText = '核心装载完成，准备转换...';
+    }
+    loadFFmpeg();
+
+    dropZone.addEventListener('click', () => videoInput.click());
+
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.style.backgroundColor = '#eeeeee';
+    });
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.style.backgroundColor = '#ffffff';
+    });
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.style.backgroundColor = '#ffffff';
+      if (e.dataTransfer.files.length) {
+        handleVideo(e.dataTransfer.files[0]);
+      }
+    });
+
+    videoInput.addEventListener('change', (e) => {
+      if (e.target.files.length) {
+        handleVideo(e.target.files[0]);
+      }
+    });
+
+    restartBtn.onclick = () => {
+      location.reload();
+    };
+
+    async function handleVideo(file) {
+      if (file.type !== 'video/mp4') {
+        alert('仅支持 MP4 格式视频。');
+        return;
+      }
+
+      // 限制文件体积 30MB
+      const maxSize = 30 * 1024 * 1024;
+      if (file.size > maxSize) {
+        alert(`视频文件过大 (${(file.size / (1024 * 1024)).toFixed(1)}MB)，限制最大上传 30MB 视频！`);
+        return;
+      }
+
+      // 检测视频时长 (限制 2 分钟)
+      const videoCheck = document.createElement('video');
+      videoCheck.preload = 'metadata';
+      videoCheck.onloadedmetadata = function() {
+        window.URL.revokeObjectURL(videoCheck.src);
+        if (videoCheck.duration > 120) {
+          alert(`视频时长为 ${Math.round(videoCheck.duration)} 秒，超过了 2 分钟限制！请剪辑后再试。`);
+          return;
+        }
+        startConversion(file);
+      };
+      videoCheck.src = URL.createObjectURL(file);
+    }
+
+    async function startConversion(file) {
+      dropZone.style.display = 'none';
+      processSection.style.display = 'block';
+      previewContainer.style.display = 'none';
+      
+      try {
+        if (!isFFmpegLoaded) {
+          statusText.innerText = '正在等待核心加载...';
+          await loadFFmpeg();
+        }
+
+        statusText.innerText = '正在读取文件数据...';
+        const { name } = file;
+        ffmpeg.FS('writeFile', name, await fetchFile(file));
+
+        statusText.innerText = '正在进行本地压缩与转换 (请勿关闭页面)...';
+
+        const quality = qualitySelect.value;
+        let scale, fps;
+        
+        switch(quality) {
+          case 'high_compress':   scale = 320; fps = 8; break;   // 高压缩 (极小)
+          case 'medium_compress': scale = 480; fps = 12; break;  // 中压缩 (推荐)
+          case 'low_compress':    scale = 640; fps = 15; break;  // 低压缩 (清晰)
+          case 'no_compress':     scale = 720; fps = 20; break;  // 原画质
+          default:                scale = 480; fps = 12;
+        }
+
+        await ffmpeg.run(
+          '-i', name, 
+          '-ss', '0',
+          '-t', '120',
+          '-vf', `fps=${fps},scale=${scale}:-1:flags=lanczos`, 
+          'output.gif'
+        );
+
+        statusText.innerText = '转换完成！正在生成预览...';
+
+        const data = ffmpeg.FS('readFile', 'output.gif');
+        const gifBlob = new Blob([data.buffer], { type: 'image/gif' });
+        const url = URL.createObjectURL(gifBlob);
+
+        gifPreview.src = url;
+        downloadBtn.href = url;
+        downloadBtn.download = `eira_${quality}_${file.name.replace(/\.[^/.]+$/, "")}.gif`;
+
+        previewContainer.style.display = 'block';
+        statusText.innerText = `转换成功！`;
+
+        ffmpeg.FS('unlink', name);
+        ffmpeg.FS('unlink', 'output.gif');
+
+      } catch (error) {
+        console.error(error);
+        statusText.innerText = '转换失败，可能是设备内存不足。';
+        restartBtn.style.display = 'inline-block';
+      }
+    }
+  </script>
+</body>
+</html>
 
     h1 {
       font-size: 16px;
