@@ -3,65 +3,66 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BACKGROUND REMOVER</title>
+  <title>批量图像抠图</title>
   <style>
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
       border-radius: 0 !important;
+      outline: none !important;
+      -webkit-tap-highlight-color: transparent;
     }
 
     body {
       background-color: #ffffff;
       color: #000000;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
       padding: 40px 20px;
-      max-width: 1200px;
+      max-width: 1000px;
       margin: 0 auto;
     }
 
     header {
       border-bottom: 2px solid #000000;
-      padding-bottom: 20px;
-      margin-bottom: 30px;
+      padding-bottom: 16px;
+      margin-bottom: 24px;
     }
 
     h1 {
-      font-size: 18px;
+      font-size: 16px;
       font-weight: 700;
       letter-spacing: 2px;
       text-transform: uppercase;
     }
 
     .sub-title {
-      font-size: 12px;
+      font-size: 11px;
       color: #666666;
-      margin-top: 6px;
+      margin-top: 4px;
       letter-spacing: 1px;
     }
 
     .upload-area {
       border: 1px dashed #000000;
-      padding: 40px;
+      padding: 32px 16px;
       text-align: center;
       background: #ffffff;
       cursor: pointer;
-      margin-bottom: 30px;
-      transition: background-color 0.2s;
+      margin-bottom: 24px;
     }
 
-    .upload-area:hover {
-      background-color: #f9f9f9;
+    .upload-area:hover, .upload-area:active {
+      background-color: #f5f5f5;
+      border-color: #000000;
     }
 
     .upload-label {
-      display: inline-block;
-      font-size: 13px;
+      font-size: 12px;
       letter-spacing: 1px;
-      text-transform: uppercase;
       font-weight: 600;
       cursor: pointer;
+      display: block;
     }
 
     #fileInput {
@@ -74,7 +75,13 @@
       align-items: center;
       margin-bottom: 20px;
       padding-bottom: 12px;
-      border-bottom: 1px solid #eeeeee;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .status-count {
+      font-size: 11px;
+      letter-spacing: 1px;
+      color: #666666;
     }
 
     .btn {
@@ -82,41 +89,43 @@
       color: #ffffff;
       border: 1px solid #000000;
       padding: 8px 16px;
-      font-size: 12px;
+      font-size: 11px;
       letter-spacing: 1px;
-      text-transform: uppercase;
       cursor: pointer;
-      font-weight: 500;
+      font-weight: 600;
     }
 
-    .btn:hover {
+    .btn:hover, .btn:active {
       background: #333333;
+      border-color: #333333;
     }
 
     .btn:disabled {
-      background: #cccccc;
-      border-color: #cccccc;
+      background: #e0e0e0;
+      border-color: #e0e0e0;
+      color: #999999;
       cursor: not-allowed;
     }
 
     .btn-secondary {
       background: #ffffff;
       color: #000000;
+      border-color: #000000;
     }
 
-    .btn-secondary:hover {
-      background: #f0f0f0;
+    .btn-secondary:hover, .btn-secondary:active {
+      background: #eeeeee;
     }
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: 20px;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
     }
 
     .card {
       border: 1px solid #000000;
-      padding: 12px;
+      padding: 10px;
       background: #ffffff;
       display: flex;
       flex-direction: column;
@@ -124,18 +133,18 @@
 
     .preview-box {
       width: 100%;
-      height: 200px;
-      background-color: #f5f5f5;
-      background-image: linear-gradient(45deg, #e0e0e0 25%, transparent 25%),
-                        linear-gradient(-45deg, #e0e0e0 25%, transparent 25%),
-                        linear-gradient(45deg, transparent 75%, #e0e0e0 75%),
-                        linear-gradient(-45deg, transparent 75%, #e0e0e0 75%);
-      background-size: 16px 16px;
-      background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+      height: 180px;
+      background-color: #fafafa;
+      background-image: linear-gradient(45deg, #eee 25%, transparent 25%),
+                        linear-gradient(-45deg, #eee 25%, transparent 25%),
+                        linear-gradient(45deg, transparent 75%, #eee 75%),
+                        linear-gradient(-45deg, transparent 75%, #eee 75%);
+      background-size: 12px 12px;
+      background-position: 0 0, 0 6px, 6px -6px, -6px 0px;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
       overflow: hidden;
     }
 
@@ -145,29 +154,27 @@
       object-fit: contain;
     }
 
-    .status {
+    .state-text {
       font-size: 11px;
-      text-transform: uppercase;
       letter-spacing: 1px;
       color: #666666;
     }
 
-    .info {
+    .file-name {
       font-size: 11px;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      color: #000000;
     }
 
     .card-actions {
       margin-top: auto;
-      display: flex;
-      gap: 8px;
     }
 
     .card-actions .btn {
-      flex: 1;
+      width: 100%;
       padding: 6px 0;
       text-align: center;
     }
@@ -176,34 +183,32 @@
       grid-column: 1 / -1;
       text-align: center;
       color: #999999;
-      font-size: 12px;
+      font-size: 11px;
       letter-spacing: 1px;
-      padding: 60px 0;
-      text-transform: uppercase;
+      padding: 40px 0;
     }
   </style>
-
   <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.4.5/dist/index.js"></script>
 </head>
 <body>
 
   <header>
-    <h1>Batch Image Background Remover</h1>
-    <div class="sub-title">Client-side processing / Zero server upload</div>
+    <h1>批量图像背景消除</h1>
+    <div class="sub-title">本地浏览器端运算 / 不上传任何服务器</div>
   </header>
 
   <div class="upload-area" id="dropZone">
-    <label class="upload-label" for="fileInput">Select or Drag Images Here</label>
+    <label class="upload-label" for="fileInput">点击选择图片或拖拽图片至此处</label>
     <input type="file" id="fileInput" multiple accept="image/*" />
   </div>
 
   <div class="controls">
-    <div class="status" id="counter">Items: 0</div>
-    <button class="btn" id="downloadAllBtn" disabled>Download All</button>
+    <div class="status-count" id="counter">图片数量: 0</div>
+    <button class="btn" id="downloadAllBtn" disabled>全部下载</button>
   </div>
 
   <div class="grid" id="grid">
-    <div class="empty-state">No files selected</div>
+    <div class="empty-state">未选择任何文件</div>
   </div>
 
   <script>
@@ -215,9 +220,11 @@
 
     let processedItems = [];
 
+    dropZone.addEventListener('click', () => fileInput.click());
+
     dropZone.addEventListener('dragover', (e) => {
       e.preventDefault();
-      dropZone.style.backgroundColor = '#f0f0f0';
+      dropZone.style.backgroundColor = '#eeeeee';
     });
 
     dropZone.addEventListener('dragleave', () => {
@@ -252,7 +259,7 @@
           id,
           file,
           outputBlob: null,
-          fileName: file.name.replace(/\.[^/.]+$/, "") + "_nobg.png"
+          fileName: file.name.replace(/\.[^/.]+$/, "") + "_抠图.png"
         };
         processedItems.push(item);
         createCard(item);
@@ -269,11 +276,11 @@
 
       card.innerHTML = `
         <div class="preview-box">
-          <span class="status" id="status_${item.id}">Processing...</span>
+          <span class="state-text" id="status_${item.id}">抠图中...</span>
         </div>
-        <div class="info" title="${item.file.name}">${item.file.name}</div>
+        <div class="file-name" title="${item.file.name}">${item.file.name}</div>
         <div class="card-actions">
-          <button class="btn btn-secondary" disabled id="dl_${item.id}">Download</button>
+          <button class="btn btn-secondary" disabled id="dl_${item.id}">下载</button>
         </div>
       `;
 
@@ -286,20 +293,26 @@
       const cardEl = document.getElementById(item.id);
 
       try {
-        const resultBlob = await imglyRemoveBackground(item.file);
+        const config = {
+          publicPath: "https://cdn.jsdelivr.net/npm/@imgly/background-removal-data@1.4.5/dist/"
+        };
+        
+        const resultBlob = await imglyRemoveBackground(item.file, config);
         item.outputBlob = resultBlob;
 
         const url = URL.createObjectURL(resultBlob);
         const previewBox = cardEl.querySelector('.preview-box');
-        previewBox.innerHTML = `<img src="${url}" alt="Preview" />`;
+        previewBox.innerHTML = `<img src="${url}" alt="预览" />`;
 
         btnEl.disabled = false;
         btnEl.onclick = () => triggerDownload(resultBlob, item.fileName);
 
         checkAllCompleted();
       } catch (err) {
-        statusEl.innerText = 'Error';
-        statusEl.style.color = '#ff0000';
+        if (statusEl) {
+          statusEl.innerText = '处理失败';
+          statusEl.style.color = '#000000';
+        }
       }
     }
 
@@ -331,7 +344,7 @@
     });
 
     function updateCounter() {
-      counter.innerText = `Items: ${processedItems.length}`;
+      counter.innerText = `图片数量: ${processedItems.length}`;
     }
   </script>
 </body>
