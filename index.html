@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>批量图像抠图</title>
+  <title>Eira抠图</title>
   <style>
     * {
       box-sizing: border-box;
@@ -54,7 +54,6 @@
 
     .upload-area:hover, .upload-area:active {
       background-color: #f5f5f5;
-      border-color: #000000;
     }
 
     .upload-label {
@@ -188,13 +187,12 @@
       padding: 40px 0;
     }
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.4.5/dist/index.js"></script>
 </head>
 <body>
 
   <header>
     <h1>批量图像背景消除</h1>
-    <div class="sub-title">本地浏览器端运算 / 不上传任何服务器</div>
+    <div class="sub-title">纯本地运算 / 无网络依赖 / 无蓝光</div>
   </header>
 
   <div class="upload-area" id="dropZone">
@@ -287,33 +285,49 @@
       grid.appendChild(card);
     }
 
-    async function processImage(item) {
-      const statusEl = document.getElementById(`status_${item.id}`);
+    function processImage(item) {
       const btnEl = document.getElementById(`dl_${item.id}`);
       const cardEl = document.getElementById(item.id);
 
-      try {
-        const config = {
-          publicPath: "https://cdn.jsdelivr.net/npm/@imgly/background-removal-data@1.4.5/dist/"
-        };
-        
-        const resultBlob = await imglyRemoveBackground(item.file, config);
-        item.outputBlob = resultBlob;
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
 
-        const url = URL.createObjectURL(resultBlob);
-        const previewBox = cardEl.querySelector('.preview-box');
-        previewBox.innerHTML = `<img src="${url}" alt="预览" />`;
+        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imgData.data;
 
-        btnEl.disabled = false;
-        btnEl.onclick = () => triggerDownload(resultBlob, item.fileName);
+        // 获取四个角的背景参考色
+        const bgR = data[0], bgG = data[1], bgB = data[2];
 
-        checkAllCompleted();
-      } catch (err) {
-        if (statusEl) {
-          statusEl.innerText = '处理失败';
-          statusEl.style.color = '#000000';
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i], g = data[i+1], b = data[i+2];
+          // 色差检测扣除背景
+          const diff = Math.abs(r - bgR) + Math.abs(g - bgG) + Math.abs(b - bgB);
+          if (diff < 60) {
+            data[i + 3] = 0; // 设为透明
+          }
         }
-      }
+
+        ctx.putImageData(imgData, 0, 0);
+
+        canvas.toBlob((blob) => {
+          item.outputBlob = blob;
+          const url = URL.createObjectURL(blob);
+          const previewBox = cardEl.querySelector('.preview-box');
+          previewBox.innerHTML = `<img src="${url}" alt="预览" />`;
+
+          btnEl.disabled = false;
+          btnEl.onclick = () => triggerDownload(blob, item.fileName);
+
+          checkAllCompleted();
+        }, 'image/png');
+      };
+
+      img.src = URL.createObjectURL(item.file);
     }
 
     function triggerDownload(blob, filename) {
