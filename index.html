@@ -313,9 +313,10 @@
       justify-content: center;
       margin-bottom: 10px;
       overflow: hidden;
+      position: relative;
     }
 
-    .preview-box img {
+    .preview-canvas {
       max-width: 100%;
       max-height: 100%;
       object-fit: contain;
@@ -501,7 +502,7 @@
         const item = {
           id,
           file,
-          outputBlob: null,
+          processedCanvas: null,
           rawName: file.name.replace(/\.[^/.]+$/, "")
         };
         store[currentFolder].push(item);
@@ -522,7 +523,7 @@
       } else {
         items.forEach(item => {
           createCardUI(item);
-          if (item.outputBlob) {
+          if (item.processedCanvas) {
             updateCardUIReady(item);
           }
         });
@@ -538,7 +539,7 @@
       card.id = item.id;
 
       card.innerHTML = `
-        <div class="preview-box">
+        <div class="preview-box" id="pbox_${item.id}">
           <span class="state-text" id="status_${item.id}">抠图中...</span>
         </div>
         <div class="file-name" title="${item.file.name}">${item.file.name}</div>
@@ -554,14 +555,24 @@
     function updateCardUIReady(item) {
       const cardEl = document.getElementById(item.id);
       if (!cardEl) return;
+      const previewBox = document.getElementById(`pbox_${item.id}`);
       const btnEl = document.getElementById(`dl_${item.id}`);
-      const url = URL.createObjectURL(item.outputBlob);
-      const previewBox = cardEl.querySelector('.preview-box');
-      previewBox.innerHTML = `<img src="${url}" alt="预览" />`;
+
+      if (previewBox && item.processedCanvas) {
+        previewBox.innerHTML = '';
+        // 克隆画布进行持久化高保真展示，解决地址失效导致的毁图破图问题
+        const displayCanvas = document.createElement('canvas');
+        displayCanvas.className = 'preview-canvas';
+        displayCanvas.width = item.processedCanvas.width;
+        displayCanvas.height = item.processedCanvas.height;
+        const dCtx = displayCanvas.getContext('2d');
+        dCtx.drawImage(item.processedCanvas, 0, 0);
+        previewBox.appendChild(displayCanvas);
+      }
 
       if (btnEl) {
         btnEl.disabled = false;
-        btnEl.onclick = () => triggerDownload(item.outputBlob, `${currentFolder}_${item.rawName}.png`);
+        btnEl.onclick = () => downloadCanvas(item.processedCanvas, `${currentFolder}_${item.rawName}.png`);
       }
     }
 
@@ -579,60 +590,67 @@
 
     function processImage(item) {
       const tolerance = parseInt(toleranceInput.value, 10);
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0);
+      const reader = new FileReader();
 
-        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imgData.data;
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
 
-        for (let i = 0; i < data.length; i += 4) {
-          const r = data[i], g = data[i+1], b = data[i+2];
-          const diff = Math.abs(r - 255) + Math.abs(g - 255) + Math.abs(b - 255);
-          if (diff <= tolerance) {
-            data[i + 3] = 0;
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const data = imgData.data;
+
+          for (let i = 0; i < data.length; i += 4) {
+            const r = data[i], g = data[i+1], b = data[i+2];
+            const diff = Math.abs(r - 255) + Math.abs(g - 255) + Math.abs(b - 255);
+            if (diff <= tolerance) {
+              data[i + 3] = 0;
+            }
           }
-        }
 
-        ctx.putImageData(imgData, 0, 0);
+          ctx.putImageData(imgData, 0, 0);
+          item.processedCanvas = canvas;
 
-        canvas.toBlob((blob) => {
-          item.outputBlob = blob;
           if (store[currentFolder].some(i => i.id === item.id)) {
             updateCardUIReady(item);
             checkAllCompleted();
           }
-        }, 'image/png');
+        };
+        img.src = e.target.result;
       };
 
-      img.src = URL.createObjectURL(item.file);
+      reader.readAsDataURL(item.file);
     }
 
-    function triggerDownload(blob, filename) {
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    function downloadCanvas(canvas, filename) {
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const a = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }, 'image/png');
     }
 
     function checkAllCompleted() {
       const items = store[currentFolder];
-      const allReady = items.length > 0 && items.every(i => i.outputBlob !== null);
+      const allReady = items.length > 0 && items.every(i => i.processedCanvas !== null);
       downloadAllBtn.disabled = !allReady;
     }
 
     downloadAllBtn.addEventListener('click', () => {
       store[currentFolder].forEach((item, index) => {
-        if (item.outputBlob) {
+        if (item.processedCanvas) {
           setTimeout(() => {
-            triggerDownload(item.outputBlob, `${currentFolder}_${item.rawName}.png`);
+            downloadCanvas(item.processedCanvas, `${currentFolder}_${item.rawName}.png`);
           }, index * 250);
         }
       });
