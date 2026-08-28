@@ -265,6 +265,7 @@
     <button class="help-btn" id="openHelpBtn">使用说明</button>
   </header>
 
+  <!-- 使用说明弹窗 -->
   <div class="modal-overlay" id="helpModal">
     <div class="modal-box">
       <div class="modal-title">使用说明 & 限制须知</div>
@@ -280,6 +281,7 @@
     </div>
   </div>
 
+  <!-- 压缩设置面板 -->
   <div class="config-panel">
     <div class="config-title">GIF 压缩档位设置</div>
     <div class="config-row">
@@ -295,11 +297,13 @@
     </div>
   </div>
 
+  <!-- 上传区域 -->
   <div class="upload-area" id="dropZone">
     <label class="upload-label" for="videoInput">点击选择视频或拖拽 MP4 至此处 (最大 30MB / 2分钟)</label>
-    <input type="file" id="videoInput" accept="video/mp4" />
+    <input type="file" id="videoInput" accept="video/mp4,video/*" />
   </div>
 
+  <!-- 状态显示与预览下载 -->
   <div class="process-section" id="processSection">
     <div class="status-text" id="statusText">等待转换...</div>
     <div id="previewContainer" style="display: none;">
@@ -315,7 +319,8 @@
 
   <script>
     const { createFFmpeg, fetchFile } = FFmpeg;
-    const ffmpeg = createFFmpeg({ log: false }); 
+    let ffmpeg = null;
+    let isFFmpegLoaded = false;
 
     const videoInput = document.getElementById('videoInput');
     const dropZone = document.getElementById('dropZone');
@@ -332,16 +337,18 @@
     document.getElementById('closeHelpBtn').onclick = () => helpModal.style.display = 'none';
     helpModal.onclick = (e) => { if(e.target === helpModal) helpModal.style.display = 'none'; };
 
-    let isFFmpegLoaded = false;
-
-    async function loadFFmpeg() {
-      if (isFFmpegLoaded) return;
-      statusText.innerText = '正在本地加载视频核心 (首次加载需下载组件，请稍候)...';
-      await ffmpeg.load();
-      isFFmpegLoaded = true;
-      statusText.innerText = '核心装载完成，准备转换...';
+    async function initFFmpeg() {
+      if (isFFmpegLoaded) return true;
+      try {
+        ffmpeg = createFFmpeg({ log: false });
+        await ffmpeg.load();
+        isFFmpegLoaded = true;
+        return true;
+      } catch (e) {
+        console.error("FFmpeg 加载失败:", e);
+        return false;
+      }
     }
-    loadFFmpeg();
 
     dropZone.addEventListener('click', () => videoInput.click());
 
@@ -371,19 +378,11 @@
     };
 
     async function handleVideo(file) {
-      if (file.type !== 'video/mp4') {
-        alert('仅支持 MP4 格式视频。');
+      if (file.size > 30 * 1024 * 1024) {
+        alert(`视频文件过大 (${(file.size / (1024 * 1024)).toFixed(1)}MB)，请上传 30MB 居内的视频！`);
         return;
       }
 
-      // 限制文件体积 30MB
-      const maxSize = 30 * 1024 * 1024;
-      if (file.size > maxSize) {
-        alert(`视频文件过大 (${(file.size / (1024 * 1024)).toFixed(1)}MB)，限制最大上传 30MB 视频！`);
-        return;
-      }
-
-      // 检测视频时长 (限制 2 分钟)
       const videoCheck = document.createElement('video');
       videoCheck.preload = 'metadata';
       videoCheck.onloadedmetadata = function() {
@@ -394,6 +393,10 @@
         }
         startConversion(file);
       };
+      videoCheck.onerror = function() {
+        // 如果提取时长失败，尝试直接转换
+        startConversion(file);
+      };
       videoCheck.src = URL.createObjectURL(file);
     }
 
@@ -401,39 +404,40 @@
       dropZone.style.display = 'none';
       processSection.style.display = 'block';
       previewContainer.style.display = 'none';
-      
+
+      statusText.innerText = '正在加载内核组件，请稍候...';
+      const loaded = await initFFmpeg();
+      if (!loaded) {
+        statusText.innerText = '组件加载失败，请检查网络连接后刷新页面重试！';
+        restartBtn.style.display = 'inline-block';
+        return;
+      }
+
       try {
-        if (!isFFmpegLoaded) {
-          statusText.innerText = '正在等待核心加载...';
-          await loadFFmpeg();
-        }
-
         statusText.innerText = '正在读取文件数据...';
-        const { name } = file;
-        ffmpeg.FS('writeFile', name, await fetchFile(file));
+        const inputName = 'input_' + Date.now() + '.mp4';
+        ffmpeg.FS('writeFile', inputName, await fetchFile(file));
 
-        statusText.innerText = '正在进行本地压缩与转换 (请勿关闭页面)...';
+        statusText.innerText = '正在转换 GIF (请勿关闭页面)...';
 
         const quality = qualitySelect.value;
         let scale, fps;
         
         switch(quality) {
-          case 'high_compress':   scale = 320; fps = 8; break;   // 高压缩 (极小)
-          case 'medium_compress': scale = 480; fps = 12; break;  // 中压缩 (推荐)
-          case 'low_compress':    scale = 640; fps = 15; break;  // 低压缩 (清晰)
-          case 'no_compress':     scale = 720; fps = 20; break;  // 原画质
+          case 'high_compress':   scale = 320; fps = 8; break;
+          case 'medium_compress': scale = 480; fps = 12; break;
+          case 'low_compress':    scale = 640; fps = 15; break;
+          case 'no_compress':     scale = 720; fps = 20; break;
           default:                scale = 480; fps = 12;
         }
 
         await ffmpeg.run(
-          '-i', name, 
-          '-ss', '0',
-          '-t', '120',
-          '-vf', `fps=${fps},scale=${scale}:-1:flags=lanczos`, 
+          '-i', inputName,
+          '-vf', `fps=${fps},scale=${scale}:-1:flags=lanczos`,
           'output.gif'
         );
 
-        statusText.innerText = '转换完成！正在生成预览...';
+        statusText.innerText = '生成中...';
 
         const data = ffmpeg.FS('readFile', 'output.gif');
         const gifBlob = new Blob([data.buffer], { type: 'image/gif' });
@@ -441,17 +445,19 @@
 
         gifPreview.src = url;
         downloadBtn.href = url;
-        downloadBtn.download = `eira_${quality}_${file.name.replace(/\.[^/.]+$/, "")}.gif`;
+        downloadBtn.download = `eira_export.gif`;
 
         previewContainer.style.display = 'block';
         statusText.innerText = `转换成功！`;
 
-        ffmpeg.FS('unlink', name);
-        ffmpeg.FS('unlink', 'output.gif');
+        try {
+          ffmpeg.FS('unlink', inputName);
+          ffmpeg.FS('unlink', 'output.gif');
+        } catch(e) {}
 
       } catch (error) {
         console.error(error);
-        statusText.innerText = '转换失败，可能是设备内存不足。';
+        statusText.innerText = '处理失败: ' + (error.message || '格式不支持或文件损坏');
         restartBtn.style.display = 'inline-block';
       }
     }
