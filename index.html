@@ -195,6 +195,15 @@
       width: 120px;
     }
 
+    .color-picker-box {
+      width: 20px;
+      height: 20px;
+      border: 1px solid #000000;
+      background-color: #ffffff;
+      display: inline-block;
+      vertical-align: middle;
+    }
+
     .range-slider {
       accent-color: #000000;
       cursor: pointer;
@@ -314,6 +323,7 @@
       margin-bottom: 10px;
       overflow: hidden;
       position: relative;
+      cursor: crosshair;
     }
 
     .preview-canvas {
@@ -371,11 +381,11 @@
 
   <div class="modal-overlay" id="helpModal">
     <div class="modal-box">
-      <div class="modal-title">容差值调节说明</div>
+      <div class="modal-title">使用说明 & 取色抠图</div>
       <div class="modal-content">
-        <p><strong>· 针对不同程度的白色背景：</strong>新增“背景白度容差”调节滑块。</p>
-        <p><strong>· 只扣纯白：</strong>拉到最左侧（数值低，如 10~20），仅扣除 rgb(255,255,255) 绝对纯白。</p>
-        <p><strong>· 抠除偏灰/偏黄的白：</strong>适度调大数值（如 50~80），防止背景与主体边缘误判。</p>
+        <p><strong>1. 默认抠白底：</strong>系统默认会扣除图片中的纯白/偏白背景。</p>
+        <p><strong>2. 吸管取色（抠非纯白）：</strong>如果图片背景是绿色、蓝色或其他单色，只需**直接点击下方预览图上的背景位置**，系统会自动读取该颜色并清除。</p>
+        <p><strong>3. 容差调节：</strong>调大容差可以消除边缘残留杂色；调小容差可防止误扣主体。</p>
       </div>
       <button class="modal-close-btn" id="closeHelpBtn">关闭</button>
     </div>
@@ -394,8 +404,13 @@
 
   <div class="config-panel">
     <div class="config-group">
-      <label for="toleranceInput">背景白度容差 (<span id="tolValue">30</span>):</label>
-      <input type="range" id="toleranceInput" class="range-slider" min="5" max="120" value="30" />
+      <label>扣除目标色:</label>
+      <div class="color-picker-box" id="colorBox" title="点击预览图中的任意颜色进行自动捕捉"></div>
+      <button class="btn btn-secondary" id="resetColorBtn" style="padding: 2px 6px; font-size: 10px;">重置为白色</button>
+    </div>
+    <div class="config-group">
+      <label for="toleranceInput">背景容差 (<span id="tolValue">30</span>):</label>
+      <input type="range" id="toleranceInput" class="range-slider" min="5" max="150" value="30" />
     </div>
   </div>
 
@@ -419,6 +434,9 @@
     };
     let currentFolder = '默认分类';
 
+    // 默认背景目标色为白色 (RGB: 255, 255, 255)
+    let targetColor = { r: 255, g: 255, b: 255 };
+
     const fileInput = document.getElementById('fileInput');
     const dropZone = document.getElementById('dropZone');
     const grid = document.getElementById('grid');
@@ -429,6 +447,8 @@
     const folderTabs = document.getElementById('folderTabs');
     const newFolderInput = document.getElementById('newFolderInput');
     const addFolderBtn = document.getElementById('addFolderBtn');
+    const colorBox = document.getElementById('colorBox');
+    const resetColorBtn = document.getElementById('resetColorBtn');
 
     const helpModal = document.getElementById('helpModal');
     document.getElementById('openHelpBtn').onclick = () => helpModal.style.display = 'flex';
@@ -436,11 +456,22 @@
     helpModal.onclick = (e) => { if(e.target === helpModal) helpModal.style.display = 'none'; };
 
     renderFolders();
+    updateColorDisplay();
 
     toleranceInput.addEventListener('input', (e) => {
       tolValue.innerText = e.target.value;
       reProcessCurrentFolder();
     });
+
+    resetColorBtn.onclick = () => {
+      targetColor = { r: 255, g: 255, b: 255 };
+      updateColorDisplay();
+      reProcessCurrentFolder();
+    };
+
+    function updateColorDisplay() {
+      colorBox.style.backgroundColor = `rgb(${targetColor.r}, ${targetColor.g}, ${targetColor.b})`;
+    }
 
     addFolderBtn.onclick = () => {
       const name = newFolderInput.value.trim();
@@ -502,6 +533,7 @@
         const item = {
           id,
           file,
+          originalCanvas: null,
           processedCanvas: null,
           rawName: file.name.replace(/\.[^/.]+$/, "")
         };
@@ -539,7 +571,7 @@
       card.id = item.id;
 
       card.innerHTML = `
-        <div class="preview-box" id="pbox_${item.id}">
+        <div class="preview-box" id="pbox_${item.id}" title="点击图片任意位置可设该颜色为背景色">
           <span class="state-text" id="status_${item.id}">抠图中...</span>
         </div>
         <div class="file-name" title="${item.file.name}">${item.file.name}</div>
@@ -560,7 +592,6 @@
 
       if (previewBox && item.processedCanvas) {
         previewBox.innerHTML = '';
-        // 克隆画布进行持久化高保真展示，解决地址失效导致的毁图破图问题
         const displayCanvas = document.createElement('canvas');
         displayCanvas.className = 'preview-canvas';
         displayCanvas.width = item.processedCanvas.width;
@@ -568,12 +599,36 @@
         const dCtx = displayCanvas.getContext('2d');
         dCtx.drawImage(item.processedCanvas, 0, 0);
         previewBox.appendChild(displayCanvas);
+
+        // 点击预览图进行吸管取色
+        previewBox.onclick = (e) => pickColorFromCard(e, item);
       }
 
       if (btnEl) {
         btnEl.disabled = false;
         btnEl.onclick = () => downloadCanvas(item.processedCanvas, `${currentFolder}_${item.rawName}.png`);
       }
+    }
+
+    function pickColorFromCard(e, item) {
+      if (!item.originalCanvas) return;
+      const previewBox = document.getElementById(`pbox_${item.id}`);
+      const rect = previewBox.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      // 计算映射到原图的比例坐标
+      const scaleX = item.originalCanvas.width / rect.width;
+      const scaleY = item.originalCanvas.height / rect.height;
+      const targetX = Math.floor(x * scaleX);
+      const targetY = Math.floor(y * scaleY);
+
+      const ctx = item.originalCanvas.getContext('2d');
+      const pixel = ctx.getImageData(targetX, targetY, 1, 1).data;
+
+      targetColor = { r: pixel[0], g: pixel[1], b: pixel[2] };
+      updateColorDisplay();
+      reProcessCurrentFolder();
     }
 
     function deleteCard(id) {
@@ -584,46 +639,61 @@
 
     function reProcessCurrentFolder() {
       store[currentFolder].forEach(item => {
-        processImage(item);
+        if (item.originalCanvas) {
+          applyCutout(item);
+        } else {
+          processImage(item);
+        }
       });
     }
 
     function processImage(item) {
-      const tolerance = parseInt(toleranceInput.value, 10);
       const reader = new FileReader();
 
       reader.onload = (e) => {
         const img = new Image();
         img.onload = () => {
-          const canvas = document.createElement('canvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0);
+          const origCanvas = document.createElement('canvas');
+          origCanvas.width = img.width;
+          origCanvas.height = img.height;
+          const oCtx = origCanvas.getContext('2d');
+          oCtx.drawImage(img, 0, 0);
+          item.originalCanvas = origCanvas;
 
-          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          const data = imgData.data;
-
-          for (let i = 0; i < data.length; i += 4) {
-            const r = data[i], g = data[i+1], b = data[i+2];
-            const diff = Math.abs(r - 255) + Math.abs(g - 255) + Math.abs(b - 255);
-            if (diff <= tolerance) {
-              data[i + 3] = 0;
-            }
-          }
-
-          ctx.putImageData(imgData, 0, 0);
-          item.processedCanvas = canvas;
-
-          if (store[currentFolder].some(i => i.id === item.id)) {
-            updateCardUIReady(item);
-            checkAllCompleted();
-          }
+          applyCutout(item);
         };
         img.src = e.target.result;
       };
 
       reader.readAsDataURL(item.file);
+    }
+
+    function applyCutout(item) {
+      const tolerance = parseInt(toleranceInput.value, 10);
+      const canvas = document.createElement('canvas');
+      canvas.width = item.originalCanvas.width;
+      canvas.height = item.originalCanvas.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(item.originalCanvas, 0, 0);
+
+      const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imgData.data;
+
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i], g = data[i+1], b = data[i+2];
+        const diff = Math.abs(r - targetColor.r) + Math.abs(g - targetColor.g) + Math.abs(b - targetColor.b);
+        if (diff <= tolerance) {
+          data[i + 3] = 0;
+        }
+      }
+
+      ctx.putImageData(imgData, 0, 0);
+      item.processedCanvas = canvas;
+
+      if (store[currentFolder].some(i => i.id === item.id)) {
+        updateCardUIReady(item);
+        checkAllCompleted();
+      }
     }
 
     function downloadCanvas(canvas, filename) {
