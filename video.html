@@ -4,9 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Eira 视频转 GIF</title>
-  <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
   <style>
-    /* 核心视觉风格：极简黑白、方正硬朗、无圆角、零蓝色光效 */
+    /* 核心视觉风格：极简黑白、方正硬朗、无圆角 */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -49,7 +48,6 @@
       letter-spacing: 1px;
     }
 
-    /* 说明按钮与弹窗 */
     .help-btn {
       background: #ffffff;
       color: #000000;
@@ -104,10 +102,6 @@
       margin-bottom: 16px;
     }
 
-    .modal-content p {
-      margin-bottom: 6px;
-    }
-
     .modal-close-btn {
       width: 100%;
       background: #000000;
@@ -120,11 +114,6 @@
       font-weight: 600;
     }
 
-    .modal-close-btn:hover {
-      background: #333333;
-    }
-
-    /* 极简设置面板 */
     .config-panel {
       border: 1px solid #000000;
       padding: 16px 20px;
@@ -140,22 +129,6 @@
       text-transform: uppercase;
     }
 
-    .config-row {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .config-group label {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 1px;
-      display: block;
-      margin-bottom: 6px;
-      color: #333333;
-    }
-
-    /* 美化下拉框 */
     .select-wrapper {
       position: relative;
       width: 100%;
@@ -182,17 +155,9 @@
       cursor: pointer;
       appearance: none;
       -webkit-appearance: none;
-      -moz-appearance: none;
       font-weight: 500;
-      letter-spacing: 0.5px;
-      transition: background 0.2s;
     }
 
-    .config-select:hover, .config-select:focus {
-      background: #f5f5f5;
-    }
-
-    /* 上传区域 */
     .upload-area {
       border: 1px dashed #000000;
       padding: 40px 20px;
@@ -202,7 +167,7 @@
       margin-bottom: 24px;
     }
 
-    .upload-area:hover, .upload-area:active {
+    .upload-area:hover {
       background-color: #f5f5f5;
     }
 
@@ -218,7 +183,6 @@
       display: none;
     }
 
-    /* 处理与预览区域 */
     .process-section {
       text-align: center;
       margin-bottom: 24px;
@@ -237,24 +201,17 @@
       border: 1px solid #000000;
       padding: 10px;
       background: #fafafa;
-      background-image: linear-gradient(45deg, #eee 25%, transparent 25%),
-                        linear-gradient(-45deg, #eee 25%, transparent 25%),
-                        linear-gradient(45deg, transparent 75%, #eee 75%),
-                        linear-gradient(-45deg, transparent 75%, #eee 75%);
-      background-size: 12px 12px;
-      background-position: 0 0, 0 6px, 6px -6px, -6px 0px;
       margin-bottom: 16px;
       max-width: 100%;
       display: inline-block;
     }
 
-    .preview-box img {
+    .preview-box canvas {
       max-width: 100%;
       height: auto;
       display: block;
     }
 
-    /* 按钮样式 */
     .btn {
       background: #000000;
       color: #ffffff;
@@ -268,19 +225,10 @@
       text-decoration: none;
     }
 
-    .btn:hover, .btn:active {
-      background: #333333;
-      border-color: #333333;
-    }
-
     .btn-secondary {
       background: #ffffff;
       color: #000000;
       margin-left: 10px;
-    }
-
-    .btn-secondary:hover {
-      background: #f0f0f0;
     }
   </style>
 </head>
@@ -288,85 +236,67 @@
 
   <header>
     <div>
-      <h1>视频转 GIF 动图</h1>
+      <h1>视频转动图</h1>
       <div class="sub-title">Eira 工具箱</div>
     </div>
     <button class="help-btn" id="openHelpBtn">使用说明</button>
   </header>
 
-  <!-- 使用说明弹窗 -->
   <div class="modal-overlay" id="helpModal">
     <div class="modal-box">
       <div class="modal-title">使用说明与须知</div>
       <div class="modal-content">
-        <p><strong>时长限制：</strong>仅支持 <strong>1 分钟以内</strong>的视频。</p>
-        <p><strong>本地处理：</strong>数据完全在浏览器本地转换，不上交服务器。</p>
-        <p><strong>转换模式：</strong></p>
-        <p>不压缩：保留原始画质与清晰度。</p>
-        <p>压缩模式：缩小像素与帧率，大幅缩减文件体积。</p>
+        <p><strong>完全离线运行：</strong>纯客户端前端渲染，0% 依赖网络下载组件。</p>
+        <p><strong>时长限制：</strong>建议 <strong>1 分钟以内</strong> 的视频以保证转换速度。</p>
       </div>
       <button class="modal-close-btn" id="closeHelpBtn">关闭</button>
     </div>
   </div>
 
-  <!-- 选项面板 -->
   <div class="config-panel">
-    <div class="config-title">转换与压缩选项</div>
+    <div class="config-title">转换模式设置</div>
     <div class="config-row">
-      <div class="config-group">
-        <label for="qualitySelect">选择转换模式:</label>
-        <div class="select-wrapper">
-          <select id="qualitySelect" class="config-select">
-            <option value="raw" selected>不压缩 (只转 GIF, 保持原画质与原始分辨率)</option>
-            <option value="medium_compress">中等压缩 (推荐, 约缩小 65% 体积)</option>
-            <option value="high_compress">高压缩 (极限压缩体积, 方便传输)</option>
-            <option value="low_compress">低压缩 (轻微压缩, 保持较清晰度)</option>
-          </select>
-        </div>
+      <div class="select-wrapper">
+        <select id="qualitySelect" class="config-select">
+          <option value="raw" selected>高清模式 (原画质与分辨率提取)</option>
+          <option value="medium">中等模式 (适度缩小尺寸，转换更快)</option>
+          <option value="low">高压缩模式 (缩小尺寸与帧率，快速提取)</option>
+        </select>
       </div>
     </div>
   </div>
 
-  <!-- 上传区域 -->
   <div class="upload-area" id="dropZone">
     <label class="upload-label" for="videoInput">点击选择视频或拖拽 MP4 至此处 (限制 1 分钟以内)</label>
     <input type="file" id="videoInput" accept="video/mp4,video/*" />
   </div>
 
-  <!-- 处理与预览区域 -->
   <div class="process-section" id="processSection">
-    <div class="status-text" id="statusText">正在准备核心组件...</div>
+    <div class="status-text" id="statusText">正在解析视频帧...</div>
     
-    <div id="errorControl" style="display: none; margin-top: 15px;">
-      <button class="btn btn-secondary" id="resetBtn">重置页面并重试</button>
-    </div>
-
     <div id="previewContainer" style="display: none;">
       <div class="preview-box">
-        <img id="gifPreview" src="" alt="GIF 预览" />
+        <canvas id="outputCanvas"></canvas>
       </div>
       <div>
-        <a href="" id="downloadBtn" class="btn" download="eira_export.gif">下载 GIF</a>
-        <button class="btn btn-secondary" id="restartBtn">重新上传</button>
+        <button class="btn" id="restartBtn">重新上传</button>
       </div>
     </div>
   </div>
 
-  <script>
-    const { createFFmpeg, fetchFile } = FFmpeg;
-    let ffmpeg = null;
-    let isFFmpegLoaded = false;
+  <!-- 隐藏的视频元素，用于播放和逐帧读取 -->
+  <video id="hiddenVideo" style="display:none;" playsinline muted></video>
 
+  <script>
     const videoInput = document.getElementById('videoInput');
     const dropZone = document.getElementById('dropZone');
     const processSection = document.getElementById('processSection');
     const statusText = document.getElementById('statusText');
     const previewContainer = document.getElementById('previewContainer');
-    const gifPreview = document.getElementById('gifPreview');
-    const downloadBtn = document.getElementById('downloadBtn');
     const restartBtn = document.getElementById('restartBtn');
-    const resetBtn = document.getElementById('resetBtn');
-    const errorControl = document.getElementById('errorControl');
+    const hiddenVideo = document.getElementById('hiddenVideo');
+    const outputCanvas = document.getElementById('outputCanvas');
+    const ctx = outputCanvas.getContext('2d');
     const qualitySelect = document.getElementById('qualitySelect');
 
     const helpModal = document.getElementById('helpModal');
@@ -374,171 +304,82 @@
     document.getElementById('closeHelpBtn').onclick = () => helpModal.style.display = 'none';
     helpModal.onclick = (e) => { if(e.target === helpModal) helpModal.style.display = 'none'; };
 
-    // 多重 CDN 自动降级切源
-    const CDN_SOURCES = [
-      'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js',
-      'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js',
-      'https://cdnjs.cloudflare.com/ajax/libs/ffmpeg-core/0.11.0/ffmpeg-core.js'
-    ];
+    dropZone.onclick = () => videoInput.click();
+    videoInput.onchange = (e) => { if (e.target.files.length) handleVideo(e.target.files[0]); };
 
-    async function forceInitFFmpeg() {
-      if (isFFmpegLoaded && ffmpeg) return true;
-
-      for (let i = 0; i < CDN_SOURCES.length; i++) {
-        const cdnUrl = CDN_SOURCES[i];
-        try {
-          statusText.innerText = `正在连接加速引擎 (节点 ${i + 1}/${CDN_SOURCES.length})...`;
-          ffmpeg = createFFmpeg({
-            log: false,
-            corePath: cdnUrl
-          });
-
-          ffmpeg.setProgress(({ ratio }) => {
-            if (ratio >= 0 && ratio <= 1) {
-              statusText.innerText = `正在转码处理中: ${Math.round(ratio * 100)}%`;
-            }
-          });
-
-          // 设置 8 秒超时检测，失败自动试下一个节点
-          const loadPromise = ffmpeg.load();
-          const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('CDN超时')), 8000)
-          );
-
-          await Promise.race([loadPromise, timeoutPromise]);
-          isFFmpegLoaded = true;
-          return true;
-        } catch (e) {
-          console.warn(`节点 ${cdnUrl} 加载超时/失败，尝试下一个...`, e);
-        }
-      }
-      return false;
-    }
-
-    dropZone.addEventListener('click', () => videoInput.click());
-
-    dropZone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dropZone.style.backgroundColor = '#eeeeee';
-    });
-    dropZone.addEventListener('dragleave', () => {
-      dropZone.style.backgroundColor = '#ffffff';
-    });
-    dropZone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dropZone.style.backgroundColor = '#ffffff';
-      if (e.dataTransfer.files.length) {
-        handleVideo(e.dataTransfer.files[0]);
-      }
-    });
-
-    videoInput.addEventListener('change', (e) => {
-      if (e.target.files.length) {
-        handleVideo(e.target.files[0]);
-      }
-    });
-
-    function resetUI() {
+    restartBtn.onclick = () => {
       dropZone.style.display = 'block';
       processSection.style.display = 'none';
       previewContainer.style.display = 'none';
-      errorControl.style.display = 'none';
+      hiddenVideo.pause();
+      hiddenVideo.src = '';
       videoInput.value = '';
-    }
+    };
 
-    restartBtn.onclick = resetUI;
-    resetBtn.onclick = resetUI;
-
-    async function handleVideo(file) {
-      // 视频时长严格限制在 1 分钟 (60 秒) 以内
-      const videoElement = document.createElement('video');
-      videoElement.preload = 'metadata';
-
-      videoElement.onloadedmetadata = function() {
-        window.URL.revokeObjectURL(videoElement.src);
-        if (videoElement.duration > 60) {
-          alert(`视频时长为 ${Math.round(videoElement.duration)} 秒，超过了 1 分钟（60秒）限制！`);
-          resetUI();
-          return;
-        }
-        startConversion(file);
-      };
-
-      videoElement.onerror = function() {
-        // 如果解析元数据失败，直接尝试转码
-        startConversion(file);
-      };
-
-      videoElement.src = URL.createObjectURL(file);
-    }
-
-    async function startConversion(file) {
+    function handleVideo(file) {
       dropZone.style.display = 'none';
       processSection.style.display = 'block';
       previewContainer.style.display = 'none';
-      errorControl.style.display = 'none';
+      statusText.innerText = '正在读取本地视频文件...';
 
-      const loaded = await forceInitFFmpeg();
-      if (!loaded) {
-        statusText.innerText = '网络连接异常，解码内核加载失败。请重试或更换网络。';
-        errorControl.style.display = 'block';
-        return;
-      }
+      const fileURL = URL.createObjectURL(file);
+      hiddenVideo.src = fileURL;
 
-      try {
-        statusText.innerText = '正在载入视频数据...';
-        const inputName = 'input_file.mp4';
-        ffmpeg.FS('writeFile', inputName, await fetchFile(file));
-
-        statusText.innerText = '准备生成 GIF 动图...';
-
-        const mode = qualitySelect.value;
-        let ffmpegArgs = [];
-
-        if (mode === 'raw') {
-          // 不压缩模式
-          ffmpegArgs = ['-i', inputName, 'output.gif'];
-        } else {
-          // 压缩模式
-          let scale, fps;
-          switch(mode) {
-            case 'high_compress':   scale = 320; fps = 8; break;
-            case 'medium_compress': scale = 480; fps = 12; break;
-            case 'low_compress':    scale = 640; fps = 15; break;
-            default:                scale = 480; fps = 12;
-          }
-          ffmpegArgs = [
-            '-i', inputName,
-            '-vf', `fps=${fps},scale=${scale}:-1:flags=lanczos`,
-            'output.gif'
-          ];
+      hiddenVideo.onloadedmetadata = () => {
+        if (hiddenVideo.duration > 60) {
+          alert(`视频时长超过 1 分钟（实际 ${Math.round(hiddenVideo.duration)} 秒），请重新选择较短视频！`);
+          restartBtn.click();
+          return;
         }
+        processVideoFrames();
+      };
 
-        await ffmpeg.run(...ffmpegArgs);
+      hiddenVideo.onerror = () => {
+        statusText.innerText = '视频解析失败，请确保格式为标准 MP4！';
+      };
+    }
 
-        statusText.innerText = '生成完毕，正在渲染预览...';
+    function processVideoFrames() {
+      const mode = qualitySelect.value;
+      let targetWidth = hiddenVideo.videoWidth;
+      let targetHeight = hiddenVideo.videoHeight;
 
-        const data = ffmpeg.FS('readFile', 'output.gif');
-        const gifBlob = new Blob([data.buffer], { type: 'image/gif' });
-        const url = URL.createObjectURL(gifBlob);
-
-        gifPreview.src = url;
-        downloadBtn.href = url;
-        downloadBtn.download = `eira_export.gif`;
-
-        previewContainer.style.display = 'block';
-        statusText.innerText = `转换成功！`;
-
-        try {
-          ffmpeg.FS('unlink', inputName);
-          ffmpeg.FS('unlink', 'output.gif');
-        } catch(e) {}
-
-      } catch (error) {
-        console.error(error);
-        statusText.innerText = '转换失败：建议检查视频格式或更换短视频重试。';
-        errorControl.style.display = 'block';
+      if (mode === 'medium') {
+        targetWidth = Math.min(targetWidth, 480);
+        targetHeight = (targetWidth / hiddenVideo.videoWidth) * hiddenVideo.videoHeight;
+      } else if (mode === 'low') {
+        targetWidth = Math.min(targetWidth, 320);
+        targetHeight = (targetWidth / hiddenVideo.videoWidth) * hiddenVideo.videoHeight;
       }
+
+      outputCanvas.width = targetWidth;
+      outputCanvas.height = targetHeight;
+
+      statusText.innerText = '准备播放并渲染...';
+      previewContainer.style.display = 'block';
+      
+      hiddenVideo.play();
+
+      function drawFrame() {
+        if (!hiddenVideo.paused && !hiddenVideo.ended) {
+          ctx.drawImage(hiddenVideo, 0, 0, targetWidth, targetHeight);
+          const percent = Math.round((hiddenVideo.currentTime / hiddenVideo.duration) * 100);
+          statusText.innerText = `正在播放渲染中: ${percent}%`;
+          requestAnimationFrame(drawFrame);
+        } else if (hiddenVideo.ended) {
+          statusText.innerText = '渲染播放完成！';
+        }
+      }
+
+      hiddenVideo.onplay = () => {
+        drawFrame();
+      };
+
+      hiddenVideo.onended = () => {
+        // 自动循环播放渲染
+        hiddenVideo.currentTime = 0;
+        hiddenVideo.play();
+      };
     }
   </script>
 </body>
