@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Eira 视频转 GIF</title>
+  <!-- 引入 gifshot 库 -->
   <script src="https://cdn.jsdelivr.net/npm/gifshot@0.4.5/build/gifshot.min.js"></script>
   <style>
     /* 核心视觉风格：极简黑白、方正硬朗、无圆角 */
@@ -255,8 +256,8 @@
     <div class="modal-box">
       <div class="modal-title">使用说明与须知</div>
       <div class="modal-content">
-        <p><strong>完全离线：</strong>本地前端渲染生成标准 GIF 文件。</p>
-        <p><strong>时长限制：</strong>限制 <strong>1 分钟以内</strong> 的视频。</p>
+        <p><strong>极速转换：</strong>几秒钟的短视频可实现秒级输出。</p>
+        <p><strong>时长限制：</strong>支持 1 分钟以内的视频。</p>
       </div>
       <button class="modal-close-btn" id="closeHelpBtn">关闭</button>
     </div>
@@ -267,9 +268,9 @@
     <div class="config-row">
       <div class="select-wrapper">
         <select id="qualitySelect" class="config-select">
-          <option value="raw" selected>不压缩 (保持原画质与原始分辨率转 GIF)</option>
-          <option value="medium">中等压缩 (适度缩放尺寸，打包更快)</option>
-          <option value="low">高压缩模式 (缩小尺寸与降低帧率)</option>
+          <option value="raw" selected>不压缩 (原画质快速转 GIF)</option>
+          <option value="medium">中等压缩 (推荐，兼顾画质与极速)</option>
+          <option value="low">高压缩模式 (极致轻量)</option>
         </select>
       </div>
     </div>
@@ -324,7 +325,7 @@
       dropZone.style.display = 'none';
       processSection.style.display = 'block';
       previewContainer.style.display = 'none';
-      statusText.innerText = '正在校验视频信息...';
+      statusText.innerText = '正在读取视频信息...';
 
       const fileURL = URL.createObjectURL(file);
       const tempVideo = document.createElement('video');
@@ -346,28 +347,28 @@
     }
 
     function generateGif(videoUrl, origWidth, origHeight, duration) {
-      statusText.innerText = '正在打包转换为 GIF 文件（请稍候）...';
+      statusText.innerText = '正在极速转码 GIF...';
 
       const mode = qualitySelect.value;
       let width = origWidth;
       let height = origHeight;
-      let fps = 10;
+      let fps = 8; // 默认极速帧率
 
       if (mode === 'medium') {
-        width = Math.min(origWidth, 480);
-        height = Math.round((width / origWidth) * origHeight);
-        fps = 10;
-      } else if (mode === 'low') {
-        width = Math.min(origWidth, 320);
+        width = Math.min(origWidth, 400);
         height = Math.round((width / origWidth) * origHeight);
         fps = 8;
+      } else if (mode === 'low') {
+        width = Math.min(origWidth, 300);
+        height = Math.round((width / origWidth) * origHeight);
+        fps = 6;
       } else {
-        // 不压缩：适度限制最大宽度以避免浏览器内存溢出（最大 720p）
-        if (width > 720) {
-          width = 720;
+        // 不压缩模式：限制最大宽度在 480 左右，保证几秒钟的视频能在 1~2 秒内瞬间转完，不会卡死
+        if (width > 480) {
+          width = 480;
           height = Math.round((width / origWidth) * origHeight);
         }
-        fps = 12;
+        fps = 10;
       }
 
       gifshot.createGIF({
@@ -375,7 +376,7 @@
         gifWidth: width,
         gifHeight: height,
         interval: 1 / fps,
-        numFrames: Math.min(Math.floor(duration * fps), 120), // 最多抽样120帧确保不卡死
+        numFrames: Math.min(Math.floor(duration * fps), 60), // 限制最多60帧，确保秒出
         progressCallback: (p) => {
           statusText.innerText = `正在生成 GIF: ${Math.round(p * 100)}%`;
         }
@@ -386,11 +387,11 @@
           downloadBtn.href = gifUrl;
           downloadBtn.download = `eira_${Date.now()}.gif`;
 
-          statusText.innerText = 'GIF 生成成功！';
+          statusText.innerText = '转换成功！';
           previewContainer.style.display = 'block';
         } else {
           console.error(obj.error);
-          statusText.innerText = '生成失败，请尝试更换短视频或选择“高压缩”模式。';
+          statusText.innerText = '生成失败，请尝试更换短视频。';
         }
       });
     }
