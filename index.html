@@ -3,8 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>批量图像抠图</title>
+  <title>Eira 视频转 GIF</title>
+  <script src="https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.js"></script>
   <style>
+    /* 核心视觉风格：极简黑白、方正硬朗、无圆角 */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -19,8 +21,9 @@
       color: #000000;
       font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
       padding: 40px 20px;
-      max-width: 1000px;
+      max-width: 800px;
       margin: 0 auto;
+      line-height: 1.6;
     }
 
     header {
@@ -34,6 +37,395 @@
 
     h1 {
       font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .sub-title {
+      font-size: 11px;
+      color: #666666;
+      margin-top: 4px;
+      letter-spacing: 1px;
+    }
+
+    .help-btn {
+      background: #ffffff;
+      color: #000000;
+      border: 1px solid #000000;
+      padding: 4px 10px;
+      font-size: 11px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      font-weight: 600;
+    }
+
+    .help-btn:hover {
+      background: #000000;
+      color: #ffffff;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .modal-box {
+      background: #ffffff;
+      border: 2px solid #000000;
+      padding: 18px 20px;
+      width: 85%;
+      max-width: 340px;
+      box-shadow: 6px 6px 0px #000000;
+    }
+
+    .modal-title {
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      border-bottom: 1px solid #000000;
+      padding-bottom: 6px;
+      letter-spacing: 1px;
+    }
+
+    .modal-content {
+      font-size: 11px;
+      line-height: 1.7;
+      color: #333333;
+      margin-bottom: 16px;
+    }
+
+    .modal-close-btn {
+      width: 100%;
+      background: #000000;
+      color: #ffffff;
+      border: 1px solid #000000;
+      padding: 6px 0;
+      font-size: 11px;
+      cursor: pointer;
+      letter-spacing: 1px;
+      font-weight: 600;
+    }
+
+    .config-panel {
+      border: 1px solid #000000;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      background: #ffffff;
+    }
+
+    .config-title {
+      font-size: 11px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    .select-wrapper {
+      position: relative;
+      width: 100%;
+    }
+
+    .select-wrapper::after {
+      content: "▼";
+      font-size: 9px;
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+      color: #000000;
+    }
+
+    .config-select {
+      width: 100%;
+      border: 1px solid #000000;
+      padding: 8px 30px 8px 12px;
+      font-size: 11px;
+      background: #ffffff;
+      color: #000000;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      font-weight: 500;
+    }
+
+    .upload-area {
+      border: 1px dashed #000000;
+      padding: 40px 20px;
+      text-align: center;
+      background: #ffffff;
+      cursor: pointer;
+      margin-bottom: 24px;
+    }
+
+    .upload-area:hover {
+      background-color: #f5f5f5;
+    }
+
+    .upload-label {
+      font-size: 12px;
+      letter-spacing: 1px;
+      font-weight: 600;
+      cursor: pointer;
+      display: block;
+    }
+
+    #videoInput {
+      display: none;
+    }
+
+    .process-section {
+      text-align: center;
+      margin-bottom: 24px;
+      display: none;
+    }
+
+    .status-text {
+      font-size: 12px;
+      letter-spacing: 1px;
+      color: #000000;
+      margin-bottom: 16px;
+      font-weight: 600;
+    }
+
+    .preview-box {
+      border: 1px solid #000000;
+      padding: 10px;
+      background: #fafafa;
+      margin-bottom: 16px;
+      max-width: 100%;
+      display: inline-block;
+    }
+
+    .preview-box img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .btn {
+      background: #000000;
+      color: #ffffff;
+      border: 1px solid #000000;
+      padding: 10px 20px;
+      font-size: 11px;
+      letter-spacing: 1px;
+      cursor: pointer;
+      font-weight: 600;
+      display: inline-block;
+      text-decoration: none;
+    }
+
+    .btn:hover {
+      background: #333333;
+    }
+
+    .btn-secondary {
+      background: #ffffff;
+      color: #000000;
+      margin-left: 10px;
+    }
+
+    .btn-secondary:hover {
+      background: #f0f0f0;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div>
+      <h1>视频转 GIF</h1>
+      <div class="sub-title">Eira 工具箱</div>
+    </div>
+    <button class="help-btn" id="openHelpBtn">使用说明</button>
+  </header>
+
+  <div class="modal-overlay" id="helpModal">
+    <div class="modal-box">
+      <div class="modal-title">使用说明与须知</div>
+      <div class="modal-content">
+        <p><strong>离线转换：</strong>所有过程均在浏览器完成，不消耗服务器流量。</p>
+        <p><strong>时长建议：</strong>支持 <strong>1 分钟以内</strong> 的视频，短视频生成速度更快。</p>
+      </div>
+      <button class="modal-close-btn" id="closeHelpBtn">关闭</button>
+    </div>
+  </div>
+
+  <div class="config-panel">
+    <div class="config-title">转换模式设置</div>
+    <div class="config-row">
+      <div class="select-wrapper">
+        <select id="qualitySelect" class="config-select">
+          <option value="raw" selected>高清模式 (原始分辨率与帧率)</option>
+          <option value="medium">中等模式 (限制宽度 480px，推荐)</option>
+          <option value="low">高压缩模式 (限制宽度 320px，体积更小)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="upload-area" id="dropZone">
+    <label class="upload-label" for="videoInput">点击选择视频或拖拽 MP4 至此处 (限制 1 分钟以内)</label>
+    <input type="file" id="videoInput" accept="video/mp4,video/*" />
+  </div>
+
+  <div class="process-section" id="processSection">
+    <div class="status-text" id="statusText">正在读取视频文件...</div>
+    
+    <div id="previewContainer" style="display: none;">
+      <div class="preview-box">
+        <img id="gifOutput" src="" alt="生成的 GIF 预览" />
+      </div>
+      <div>
+        <a id="downloadBtn" href="" download="eira_export.gif" class="btn">下载 GIF</a>
+        <button class="btn btn-secondary" id="deleteBtn">删除 / 重新上传</button>
+      </div>
+    </div>
+  </div>
+
+  <video id="hiddenVideo" style="display:none;" playsinline muted></video>
+
+  <script>
+    const videoInput = document.getElementById('videoInput');
+    const dropZone = document.getElementById('dropZone');
+    const processSection = document.getElementById('processSection');
+    const statusText = document.getElementById('statusText');
+    const previewContainer = document.getElementById('previewContainer');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const deleteBtn = document.getElementById('deleteBtn');
+    const hiddenVideo = document.getElementById('hiddenVideo');
+    const gifOutput = document.getElementById('gifOutput');
+    const qualitySelect = document.getElementById('qualitySelect');
+
+    let currentObjectUrl = null;
+
+    const helpModal = document.getElementById('helpModal');
+    document.getElementById('openHelpBtn').onclick = () => helpModal.style.display = 'flex';
+    document.getElementById('closeHelpBtn').onclick = () => helpModal.style.display = 'none';
+    helpModal.onclick = (e) => { if(e.target === helpModal) helpModal.style.display = 'none'; };
+
+    dropZone.onclick = () => videoInput.click();
+    videoInput.onchange = (e) => { if (e.target.files.length) handleVideo(e.target.files[0]); };
+
+    deleteBtn.onclick = resetUI;
+
+    function resetUI() {
+      if (currentObjectUrl) {
+        URL.revokeObjectURL(currentObjectUrl);
+        currentObjectUrl = null;
+      }
+      dropZone.style.display = 'block';
+      processSection.style.display = 'none';
+      previewContainer.style.display = 'none';
+      hiddenVideo.pause();
+      hiddenVideo.src = '';
+      gifOutput.src = '';
+      downloadBtn.href = '';
+      videoInput.value = '';
+    }
+
+    function handleVideo(file) {
+      dropZone.style.display = 'none';
+      processSection.style.display = 'block';
+      previewContainer.style.display = 'none';
+      statusText.innerText = '正在载入视频...';
+
+      const fileURL = URL.createObjectURL(file);
+      hiddenVideo.src = fileURL;
+
+      hiddenVideo.onloadedmetadata = () => {
+        if (hiddenVideo.duration > 60) {
+          alert(`视频时长超过 1 分钟（实际 ${Math.round(hiddenVideo.duration)} 秒），请重新选择！`);
+          resetUI();
+          return;
+        }
+        convertVideoToGif();
+      };
+
+      hiddenVideo.onerror = () => {
+        statusText.innerText = '视频读取失败，请检查格式是否为标准 MP4！';
+      };
+    }
+
+    function convertVideoToGif() {
+      const mode = qualitySelect.value;
+      let targetWidth = hiddenVideo.videoWidth;
+      let targetHeight = hiddenVideo.videoHeight;
+      let sampleInterval = 10; // 抽帧间隔
+
+      if (mode === 'medium') {
+        targetWidth = Math.min(targetWidth, 480);
+        targetHeight = Math.round((targetWidth / hiddenVideo.videoWidth) * hiddenVideo.videoHeight);
+        sampleInterval = 12;
+      } else if (mode === 'low') {
+        targetWidth = Math.min(targetWidth, 320);
+        targetHeight = Math.round((targetWidth / hiddenVideo.videoWidth) * hiddenVideo.videoHeight);
+        sampleInterval = 15;
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+      const ctx = canvas.getContext('2d');
+
+      const gif = new GIF({
+        workers: 2,
+        quality: 10,
+        width: targetWidth,
+        height: targetHeight,
+        workerScript: 'https://cdn.jsdelivr.net/npm/gif.js@0.2.0/dist/gif.worker.js'
+      });
+
+      let currentTime = 0;
+      const duration = hiddenVideo.duration;
+      const frameStep = 0.1; // 每 0.1 秒截一帧
+
+      statusText.innerText = '正在逐帧抓取图像... 0%';
+
+      function captureFrame() {
+        if (currentTime < duration) {
+          hiddenVideo.currentTime = currentTime;
+        } else {
+          statusText.innerText = '正在合成 GIF 文件，请稍候...';
+          gif.render();
+        }
+      }
+
+      hiddenVideo.onseeked = () => {
+        ctx.drawImage(hiddenVideo, 0, 0, targetWidth, targetHeight);
+        gif.addFrame(ctx, { copy: true, delay: 100 });
+        currentTime += frameStep;
+        const progress = Math.min(100, Math.round((currentTime / duration) * 100));
+        statusText.innerText = `正在逐帧抓取图像... ${progress}%`;
+        captureFrame();
+      };
+
+      gif.on('finished', (blob) => {
+        currentObjectUrl = URL.createObjectURL(blob);
+        gifOutput.src = currentObjectUrl;
+        downloadBtn.href = currentObjectUrl;
+        downloadBtn.download = `eira_${Date.now()}.gif`;
+
+        statusText.innerText = '转换成功！';
+        previewContainer.style.display = 'block';
+      });
+
+      captureFrame();
+    }
+  </script>
+</body>
+</html>
       font-weight: 700;
       letter-spacing: 2px;
       text-transform: uppercase;
