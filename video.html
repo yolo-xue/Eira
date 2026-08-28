@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Eira 视频转 GIF</title>
-  <script src="https://cdn.jsdelivr.net/npm/omggif@1.0.10/omggif.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gifshot@0.4.5/build/gifshot.min.js"></script>
   <style>
     /* 核心视觉风格：极简黑白、方正硬朗、无圆角 */
     * {
@@ -213,12 +213,6 @@
       display: block;
     }
 
-    .btn-group {
-      display: flex;
-      justify-content: center;
-      gap: 12px;
-    }
-
     .btn {
       background: #000000;
       color: #ffffff;
@@ -232,9 +226,14 @@
       text-decoration: none;
     }
 
+    .btn:hover {
+      background: #333333;
+    }
+
     .btn-secondary {
       background: #ffffff;
       color: #000000;
+      margin-left: 10px;
     }
 
     .btn-secondary:hover {
@@ -256,8 +255,8 @@
     <div class="modal-box">
       <div class="modal-title">使用说明与须知</div>
       <div class="modal-content">
-        <p><strong>转换机制：</strong>本地直接编码合成真实 `.gif` 文件。</p>
-        <p><strong>时长限制：</strong>限制在 <strong>1 分钟以内</strong> 的 MP4 视频。</p>
+        <p><strong>完全离线：</strong>本地前端渲染生成标准 GIF 文件。</p>
+        <p><strong>时长限制：</strong>限制 <strong>1 分钟以内</strong> 的视频。</p>
       </div>
       <button class="modal-close-btn" id="closeHelpBtn">关闭</button>
     </div>
@@ -268,9 +267,9 @@
     <div class="config-row">
       <div class="select-wrapper">
         <select id="qualitySelect" class="config-select">
-          <option value="raw" selected>高清模式 (较高清晰度，体积稍大)</option>
-          <option value="medium">中等模式 (尺寸适中，平衡压缩)</option>
-          <option value="low">高压缩模式 (缩小尺寸，生成极快)</option>
+          <option value="raw" selected>不压缩 (保持原画质与原始分辨率转 GIF)</option>
+          <option value="medium">中等压缩 (适度缩放尺寸，打包更快)</option>
+          <option value="low">高压缩模式 (缩小尺寸与降低帧率)</option>
         </select>
       </div>
     </div>
@@ -286,17 +285,14 @@
     
     <div id="previewContainer" style="display: none;">
       <div class="preview-box">
-        <img id="gifResultImg" src="" alt="生成的 GIF" />
+        <img id="gifPreview" src="" alt="生成的 GIF 动图" />
       </div>
-      <div class="btn-group">
-        <a id="downloadBtn" href="#" download="eira_export.gif" class="btn">下载 GIF</a>
+      <div>
+        <a href="" id="downloadBtn" class="btn" download="eira_export.gif">下载 GIF</a>
         <button class="btn btn-secondary" id="restartBtn">删除并重新上传</button>
       </div>
     </div>
   </div>
-
-  <video id="hiddenVideo" style="display:none;" playsinline muted></video>
-  <canvas id="workCanvas" style="display:none;"></canvas>
 
   <script>
     const videoInput = document.getElementById('videoInput');
@@ -304,15 +300,10 @@
     const processSection = document.getElementById('processSection');
     const statusText = document.getElementById('statusText');
     const previewContainer = document.getElementById('previewContainer');
-    const restartBtn = document.getElementById('restartBtn');
-    const hiddenVideo = document.getElementById('hiddenVideo');
-    const workCanvas = document.getElementById('workCanvas');
-    const ctx = workCanvas.getContext('2d');
-    const gifResultImg = document.getElementById('gifResultImg');
+    const gifPreview = document.getElementById('gifPreview');
     const downloadBtn = document.getElementById('downloadBtn');
+    const restartBtn = document.getElementById('restartBtn');
     const qualitySelect = document.getElementById('qualitySelect');
-
-    let createdObjectUrl = null;
 
     const helpModal = document.getElementById('helpModal');
     document.getElementById('openHelpBtn').onclick = () => helpModal.style.display = 'flex';
@@ -322,142 +313,86 @@
     dropZone.onclick = () => videoInput.click();
     videoInput.onchange = (e) => { if (e.target.files.length) handleVideo(e.target.files[0]); };
 
-    restartBtn.onclick = resetUI;
-
-    function resetUI() {
-      if (createdObjectUrl) {
-        URL.revokeObjectURL(createdObjectUrl);
-        createdObjectUrl = null;
-      }
+    restartBtn.onclick = () => {
       dropZone.style.display = 'block';
       processSection.style.display = 'none';
       previewContainer.style.display = 'none';
-      hiddenVideo.pause();
-      hiddenVideo.src = '';
       videoInput.value = '';
-    }
+    };
 
     function handleVideo(file) {
       dropZone.style.display = 'none';
       processSection.style.display = 'block';
       previewContainer.style.display = 'none';
-      statusText.innerText = '正在读取本地视频...';
+      statusText.innerText = '正在校验视频信息...';
 
       const fileURL = URL.createObjectURL(file);
-      hiddenVideo.src = fileURL;
+      const tempVideo = document.createElement('video');
+      tempVideo.src = fileURL;
+      tempVideo.preload = 'metadata';
 
-      hiddenVideo.onloadedmetadata = () => {
-        if (hiddenVideo.duration > 60) {
-          alert(`视频时长超过 1 分钟（实际 ${Math.round(hiddenVideo.duration)} 秒），请重新选择较短视频！`);
-          resetUI();
+      tempVideo.onloadedmetadata = () => {
+        if (tempVideo.duration > 60) {
+          alert(`视频时长为 ${Math.round(tempVideo.duration)} 秒，超过了 1 分钟限制！`);
+          restartBtn.click();
           return;
         }
-        startGifEncoding();
+        generateGif(fileURL, tempVideo.videoWidth, tempVideo.videoHeight, tempVideo.duration);
       };
 
-      hiddenVideo.onerror = () => {
+      tempVideo.onerror = () => {
         statusText.innerText = '视频解析失败，请确保格式为标准 MP4！';
       };
     }
 
-    async function startGifEncoding() {
-      statusText.innerText = '正在提取视频帧...';
-      
+    function generateGif(videoUrl, origWidth, origHeight, duration) {
+      statusText.innerText = '正在打包转换为 GIF 文件（请稍候）...';
+
       const mode = qualitySelect.value;
-      let targetWidth = hiddenVideo.videoWidth || 480;
-      let targetHeight = hiddenVideo.videoHeight || 320;
+      let width = origWidth;
+      let height = origHeight;
       let fps = 10;
 
       if (mode === 'medium') {
-        targetWidth = Math.min(targetWidth, 400);
-        targetHeight = Math.round((targetWidth / hiddenVideo.videoWidth) * hiddenVideo.videoHeight);
-        fps = 8;
+        width = Math.min(origWidth, 480);
+        height = Math.round((width / origWidth) * origHeight);
+        fps = 10;
       } else if (mode === 'low') {
-        targetWidth = Math.min(targetWidth, 280);
-        targetHeight = Math.round((targetWidth / hiddenVideo.videoWidth) * hiddenVideo.videoHeight);
-        fps = 6;
-      }
-
-      workCanvas.width = targetWidth;
-      workCanvas.height = targetHeight;
-
-      const duration = hiddenVideo.duration;
-      const totalFrames = Math.floor(duration * fps);
-      const frameInterval = 1 / fps;
-
-      // 提取所有帧的数据
-      const frames = [];
-      for (let i = 0; i < totalFrames; i++) {
-        hiddenVideo.currentTime = i * frameInterval;
-        await new Promise(resolve => {
-          hiddenVideo.onseeked = resolve;
-        });
-
-        ctx.drawImage(hiddenVideo, 0, 0, targetWidth, targetHeight);
-        const imgData = ctx.getImageData(0, 0, targetWidth, targetHeight);
-        frames.push(imgData);
-
-        const progress = Math.round(((i + 1) / totalFrames) * 50);
-        statusText.innerText = `正在捕获视频画面: ${progress}%`;
-      }
-
-      statusText.innerText = '正在合成 GIF 动图...';
-
-      // 简易 GIF 打包逻辑
-      try {
-        const buffer = new Uint8Array(targetWidth * targetHeight * totalFrames * 5 + 1024);
-        const gifWriter = new omggif.GifWriter(buffer, targetWidth, targetHeight, { loop: 0 });
-
-        for (let i = 0; i < frames.length; i++) {
-          const rgba = frames[i].data;
-          const palette = [];
-          const indexedPixels = new Uint8Array(targetWidth * targetHeight);
-
-          // 简略调色板提取与索引
-          for (let p = 0; p < rgba.length; p += 4) {
-            const r = rgba[p] & 0xE0;
-            const g = rgba[p + 1] & 0xE0;
-            const b = rgba[p + 2] & 0xC0;
-            const color = (r << 16) | (g << 8) | b;
-            
-            let colorIdx = palette.indexOf(color);
-            if (colorIdx === -1) {
-              if (palette.length < 256) {
-                palette.push(color);
-                colorIdx = palette.length - 1;
-              } else {
-                colorIdx = 0;
-              }
-            }
-            indexedPixels[p / 4] = colorIdx;
-          }
-
-          // 补齐 256 色
-          while (palette.length < 256) palette.push(0);
-
-          gifWriter.addFrame(0, 0, targetWidth, targetHeight, indexedPixels, {
-            palette: palette,
-            delay: Math.round(100 / fps)
-          });
-
-          const encodeProgress = 50 + Math.round(((i + 1) / totalFrames) * 50);
-          statusText.innerText = `正在打包 GIF: ${encodeProgress}%`;
+        width = Math.min(origWidth, 320);
+        height = Math.round((width / origWidth) * origHeight);
+        fps = 8;
+      } else {
+        // 不压缩：适度限制最大宽度以避免浏览器内存溢出（最大 720p）
+        if (width > 720) {
+          width = 720;
+          height = Math.round((width / origWidth) * origHeight);
         }
-
-        const gifData = buffer.subarray(0, gifWriter.end());
-        const blob = new Blob([gifData], { type: 'image/gif' });
-        
-        createdObjectUrl = URL.createObjectURL(blob);
-        gifResultImg.src = createdObjectUrl;
-        downloadBtn.href = createdObjectUrl;
-
-        statusText.innerText = '转换完成！可以下载或删除重来。';
-        previewContainer.style.display = 'block';
-
-      } catch (err) {
-        console.error(err);
-        statusText.innerText = 'GIF 合成失败，建议选择中等/低模式重试。';
+        fps = 12;
       }
+
+      gifshot.createGIF({
+        video: [videoUrl],
+        gifWidth: width,
+        gifHeight: height,
+        interval: 1 / fps,
+        numFrames: Math.min(Math.floor(duration * fps), 120), // 最多抽样120帧确保不卡死
+        progressCallback: (p) => {
+          statusText.innerText = `正在生成 GIF: ${Math.round(p * 100)}%`;
+        }
+      }, (obj) => {
+        if (!obj.error) {
+          const gifUrl = obj.image;
+          gifPreview.src = gifUrl;
+          downloadBtn.href = gifUrl;
+          downloadBtn.download = `eira_${Date.now()}.gif`;
+
+          statusText.innerText = 'GIF 生成成功！';
+          previewContainer.style.display = 'block';
+        } else {
+          console.error(obj.error);
+          statusText.innerText = '生成失败，请尝试更换短视频或选择“高压缩”模式。';
+        }
+      });
     }
   </script>
 </body>
